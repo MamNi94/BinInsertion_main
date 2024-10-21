@@ -103,7 +103,7 @@ def bincontrol(frame_queue_main:queue.Queue,inserted_bins:queue.Queue,stop_flag:
                
                 color_image = None
                 color_image, depth_image = frame_queue.get()
-                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size= 12, cut_rect= True)
+                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size= 12, cut_rect= True, improved_bbox=True)
 
                 if box_detected ==False and box_detected_last_iteration == True and wall_check == True:
                         inserted_bins_count +=1

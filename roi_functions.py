@@ -192,9 +192,68 @@ def cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8):
         masked_color_image = cv2.bitwise_and(color_image, color_image, mask=contour_mask)
                     
         return masked_color_image, hull,box, box_detected
+
+def get_max_points(box):
+    max_x_index = np.argmax(box[:, 0])  # Select the first column (x-coordinates)
+    # Get the point with the maximum x-coordinate
+    max_x_point = box[max_x_index]
+
+    # Step 1: Extract x-coordinates
+    x_coordinates = box[:, 0]
+
+    unique_x = np.sort(x_coordinates)[::-1] 
+
+    # Step 3: Check if there are at least two unique x-coordinates
+    if len(unique_x) >= 2:
+        # Step 4: Get the second largest x-coordinate
+        second_largest_x = unique_x[1]
+
+        # Step 5: Retrieve the corresponding point(s) with that x-coordinate
+        second_largest_point = box[box[:, 0] == second_largest_x][0]
+        if max_x_point[1] == second_largest_point[1]:
+            second_largest_point = box[box[:, 0] == second_largest_x][1]
+        
+    return max_x_point, second_largest_point
+
+def improve_bounding_box(color_image,box):
+    for i in range(4):
+        #p1 = box[i - 1]  # Previous point (wraps around using i-1)
+        p2 = box[i]      # Current point
+       # p3 = box[(i + 1) % 4]  # Next point (wraps around using i+1)
+        
+        #angle = np.round(calculate_angle(p1, p2, p3))
+        cv2.putText(color_image,f'corner: {i}', p2, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
+                
+
+    max_1, max_2 = get_max_points(box)
+    print(max_1, max_2)
+    
+    bin_side_length = np.round(distance(max_1,max_2))
+        
+    cv2.putText(color_image,f'p1', (max_1[0], max_1[1]+30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+    cv2.putText(color_image,f'p2', (max_2[0],max_2[1] + 30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+    cv2.putText(color_image,f'right wall length: {bin_side_length}', (np.int0(max_2[0])-100,np.int0((max_2[1]+max_1[1])/2) ) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+
+    if max_1[1] > max_2[1]:
+        direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
+    else:
+        direction = np.array([(max_1[1]-max_2[1])/bin_side_length,-(max_1[0] - max_2[0])/bin_side_length])
+    calculated_point_1 = direction * 1.45 * bin_side_length  + max_1
+    calculated_point_2 = direction * 1.45 * bin_side_length  + max_2
+    
+    cv2.circle(color_image, (np.int0(calculated_point_1[0]),np.int0(calculated_point_1[1])), 3,(255,255,0),3)
+    cv2.circle(color_image, (np.int0(calculated_point_2[0]),np.int0(calculated_point_2[1])), 3,(255,255,0),3)
+    
+    print(calculated_point_1, calculated_point_2, max_1,max_2)
+    all_points = np.array([np.int0(calculated_point_1), np.int0(calculated_point_2), max_1,max_2])
+    rect = cv2.minAreaRect(all_points)
+    box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
+    box = np.int0(box) 
+  
+    return box
     
     
-def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size=10, cut_rect = False):
+def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size=10, cut_rect = False, improved_bbox = False):
     masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
     box_detected = False
     min_depth_mm = min_depth * 1000
@@ -237,6 +296,9 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
                 box = np.int0(box) 
                 extraction_shape = box
+
+                if improved_bbox ==True:
+                     extraction_shape = improve_bounding_box(color_image, box)
                 
                 #get rect midpoint
                 rect_center = rect[0]

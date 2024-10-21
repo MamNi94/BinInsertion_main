@@ -15,32 +15,14 @@ import time
 
 ht = 0.5
 
-
-#wall_model = tf.keras.models.load_model('VGG_bincheck_wall_224x224_v1.h5')
-#wall_model_1 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_out_v3.h5')
-#wall_model_2 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_v6_L2_val_accuracy_0.9799723625183105.h5')
-#wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_12_224x224_v1_L2_val_accuracy_0.9952780604362488_distance2.h5')
 wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
-#wall_model_3 = tf.keras.models.load_model('models/wall_models/models_cut/dense.h5')
-#wall_model_3 = tf.keras.models.load_model('models/wall_models/models_whole_bin_thresh/inception_wall_224x224_thresh_whole_bin_v1_L2_val_accuracy_0.981792688369751 (1).h5')
-#wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_walls_224x224_cut_out_v2.h5')
+
 
 img_shape = 224
 if img_shape == 224:
     pass
     #hole_model = tf.keras.models.load_model('VGG_bincheck_holes_224x224_v2.h5')
-    #hole_model = tf.keras.models.load_model('models_0909/Inception_bincheck_holes_224x224_256_v2.h5')
-    #hole_model = tf.keras.models.load_model('models_0909/inception_Net_bincheck_holes_224x224_v0.h5')
-    #hole_model = tf.keras.models.load_model('models_0909/VGG16_bincheck_holes_224x224_1024_v0.h5') #good
-    #hole_model = tf.keras.models.load_model('models_0909/inception_bincheck_holes_224x224_v1.h5')
-    #hole_model = tf.keras.models.load_model('models_0909/VGG19_bincheck_holes_224x224_v0.h5') #Best performance
-    #hole_model = tf.keras.models.load_model('models/hole_models/inception_hole_224x224_512_v0.h5') 
-    #hole_model = tf.keras.models.load_model('models/hole_models/inception_hole_224x224_1024_v0.h5') 
-    #hole_model = tf.keras.models.load_model('models/hole_models/inception_hole_224x224_close.h5') 
-if img_shape == 112:
-    #hole_model = tf.keras.models.load_model('VGG_bincheck_holes_112x112_v0.h5')
-    pass
-
+ 
  # Only store the most recent frame
     
 def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
