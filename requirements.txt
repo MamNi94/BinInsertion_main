@@ -1,0 +1,5 @@
+tensorflow==2.10
+numpy==1.18.5
+pyrealsense2
+opencv-python
+Pillow>=7.0.0
