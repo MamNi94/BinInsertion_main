@@ -3,7 +3,7 @@ import pyrealsense2 as rs
 import cv2
 import os
 import heapq
-import matplotlib as plt
+
 from tensorflow.keras.preprocessing import image
 import tensorflow as tf
 
@@ -19,8 +19,8 @@ ht = 0.5
 #wall_model = tf.keras.models.load_model('VGG_bincheck_wall_224x224_v1.h5')
 #wall_model_1 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_out_v3.h5')
 #wall_model_2 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_v6_L2_val_accuracy_0.9799723625183105.h5')
-#wall_model_3 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_rect_12_224x224_v0_L2_val_accuracy_0.9943740963935852.h5')
-wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_12_224x224_v1_L2_val_accuracy_0.9952780604362488_distance2.h5')
+##wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
 #wall_model_3 = tf.keras.models.load_model('models/wall_models/models_cut/dense.h5')
 #wall_model_3 = tf.keras.models.load_model('models/wall_models/models_whole_bin_thresh/inception_wall_224x224_thresh_whole_bin_v1_L2_val_accuracy_0.981792688369751 (1).h5')
 #wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_walls_224x224_cut_out_v2.h5')
@@ -99,8 +99,8 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     
     
     height, width = color_image.shape[:2]
-    h = np.int(height/2)
-    w = np.int(width/2)  
+    h = np.int0(height/2)
+    w = np.int0(width/2)  
     
     print(f'prediction {prediction[0]}')
     if prediction[0] > 0.9:
@@ -200,7 +200,6 @@ finally:
     # Stop streaming
     pipeline.stop()
     
-
  
     cv2.destroyAllWindows()
     

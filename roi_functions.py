@@ -287,15 +287,15 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 
     if box_detected == False:
         height, width = color_image.shape[:2]
-        h = np.int(height/2)
-        w = np.int(width/2)      
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
         cv2.circle(color_image, (w,h), 7, (0, 0, 200), 5)
         cv2.putText(color_image,f'No Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
         
     if box_detected == True:
         height, width = color_image.shape[:2]
-        h = np.int(height/2)
-        w = np.int(width/2)      
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
         cv2.circle(color_image, (w,h), 7, (0, 200, 0), 5)
         cv2.putText(color_image,f'Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
             
