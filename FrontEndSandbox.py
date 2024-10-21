@@ -8,6 +8,12 @@ import pyrealsense2 as rs
 import queue
 import GUIBincontrol
 import cv2
+import os
+
+# Create the 'saved_images' directory if it doesn't exist
+if not os.path.exists('saved_images'):
+    os.makedirs('saved_images')
+
 
 frame_queue_main = queue.Queue(maxsize = 1)
 inserted_bins = queue.Queue(maxsize = 1)
@@ -92,7 +98,7 @@ i.set(0)
 image_path = 'background_2.jpg'
 image = Image.open(image_path)
 new_size = (1600, 900)  # Set your desired dimensions here
-resized_image = image.resize(new_size, Image.ANTIALIAS)
+resized_image = image.resize(new_size, Image.LANCZOS)
 photo = ImageTk.PhotoImage(resized_image)
 
 

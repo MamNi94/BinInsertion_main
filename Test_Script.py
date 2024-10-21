@@ -97,10 +97,9 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 d1 = distance(box[0],box[1])
                 d2 = distance(box[0],box[2])
                 d = max(d1,d2)
-                erosion_size = np.int(d/erosion_size_input)
+                erosion_size = np.int0(d/erosion_size_input)
                 
                 ####Improved Bounding Box
-
                 for i in range(4):
                     p1 = box[i - 1]  # Previous point (wraps around using i-1)
                     p2 = box[i]      # Current point
@@ -117,7 +116,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                     
                 cv2.putText(color_image,f'p1', (max_1[0], max_1[1]+30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
                 cv2.putText(color_image,f'p2', (max_2[0],max_2[1] + 30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
-                cv2.putText(color_image,f'right wall length: {bin_side_length}', (np.int(max_2[0])-100,np.int((max_2[1]+max_1[1])/2) ) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+                cv2.putText(color_image,f'right wall length: {bin_side_length}', (np.int0(max_2[0])-100,np.int0((max_2[1]+max_1[1])/2) ) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
 
                 if max_1[1] > max_2[1]:
                     direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
@@ -126,8 +125,8 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 calculated_point_1 = direction * 1.45 * bin_side_length  + max_1
                 calculated_point_2 = direction * 1.45 * bin_side_length  + max_2
                 
-                cv2.circle(color_image, (np.int(calculated_point_1[0]),np.int(calculated_point_1[1])), 3,(255,255,0),3)
-                cv2.circle(color_image, (np.int(calculated_point_2[0]),np.int(calculated_point_2[1])), 3,(255,255,0),3)
+                cv2.circle(color_image, (np.int0(calculated_point_1[0]),np.int0(calculated_point_1[1])), 3,(255,255,0),3)
+                cv2.circle(color_image, (np.int0(calculated_point_2[0]),np.int0(calculated_point_2[1])), 3,(255,255,0),3)
                 
                 print(calculated_point_1, calculated_point_2, max_1,max_2)
                 all_points = np.array([np.int0(calculated_point_1), np.int0(calculated_point_2), max_1,max_2])
@@ -187,8 +186,8 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 
     if box_detected == False:
         height, width = color_image.shape[:2]
-        h = np.int(height/2)
-        w = np.int(width/2)      
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
         cv2.circle(color_image, (w,h), 7, (0, 0, 200), 5)
         cv2.putText(color_image,f'No Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
         
@@ -197,8 +196,8 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
         
     if box_detected == True:
         height, width = color_image.shape[:2]
-        h = np.int(height/2)
-        w = np.int(width/2)      
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
         cv2.circle(color_image, (w,h), 7, (0, 200, 0), 5)
         cv2.putText(color_image,f'Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         

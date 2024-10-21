@@ -8,9 +8,19 @@ import time
 from tensorflow.keras.preprocessing import image
 import tensorflow as tf
 
-from roi_functions import cut_region_at_distance, detect_roi,cut_region_v2, get_shifted_points,get_corner_points, draw_rotated_rectangle, cut_region_between_hulls
+from roi_functions import  cut_region_between_hulls
 
-wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+
+# Check for GPU availability
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
+# Print GPU details if available
+if tf.config.list_physical_devices('GPU'):
+    for gpu in tf.config.list_physical_devices('GPU'):
+        print("GPU Device:", gpu)
+
+        
+wall_model = tf.keras.models.load_model('models/walls/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
 frame_queue =queue.Queue(maxsize=1)
 
 def capture_frames(pipeline, align, exit_event):
@@ -54,11 +64,13 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
 
     img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
     img_array /= 255.0  # Normalize
-    prediction = wall_model.predict(img_array)
+
+    with tf.device('/GPU:0'):
+        prediction = wall_model.predict(img_array)
     print(f'prediction {prediction[0]}')
     height, width = color_image.shape[:2]
-    h = np.int(height/2)
-    w = np.int(width/2)  
+    h = np.int0(height/2)
+    w = np.int0(width/2)  
     
     if prediction[0] > 0.5:
         cv2.putText(color_image,f'Wall Check: ', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 0), 3)
@@ -124,8 +136,7 @@ def bincontrol(frame_queue_main:queue.Queue,inserted_bins:queue.Queue,stop_flag:
 
 #def main(pipeline,config, stop_event):
 def main(frame_queue_main:queue.Queue,inserted_bins:queue.Queue, stop_event):  
-    #stop_event = threading.Event()
-    #frame_queue = queue.Queue(maxsize=1)
+
     print('main started.....')
     # Initialize RealSense pipeline
     

@@ -19,8 +19,8 @@ ht = 0.5
 #wall_model = tf.keras.models.load_model('VGG_bincheck_wall_224x224_v1.h5')
 #wall_model_1 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_out_v3.h5')
 #wall_model_2 = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_224x224_cut_v6_L2_val_accuracy_0.9799723625183105.h5')
-wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_12_224x224_v1_L2_val_accuracy_0.9952780604362488_distance2.h5')
-##wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+#wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_12_224x224_v1_L2_val_accuracy_0.9952780604362488_distance2.h5')
+wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
 #wall_model_3 = tf.keras.models.load_model('models/wall_models/models_cut/dense.h5')
 #wall_model_3 = tf.keras.models.load_model('models/wall_models/models_whole_bin_thresh/inception_wall_224x224_thresh_whole_bin_v1_L2_val_accuracy_0.981792688369751 (1).h5')
 #wall_model = tf.keras.models.load_model('models/wall_models/models_cut/inception_walls_224x224_cut_out_v2.h5')
@@ -95,7 +95,9 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
    
     img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
     img_array /= 255.0  # Normalize
-    prediction = wall_model.predict(img_array)
+
+    with tf.device('/GPU:0'):
+        prediction = wall_model.predict(img_array)
     
     
     height, width = color_image.shape[:2]
