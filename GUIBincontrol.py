@@ -111,7 +111,7 @@ def bincontrol(frame_queue_main:queue.Queue,inserted_bins:queue.Queue,stop_flag:
                
                 color_image = None
                 color_image, depth_image = frame_queue.get()
-                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size_input= 12, cut_rect= True, improved_bbox=False)
+                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8,  cut_rect= True, improved_bbox=False)
 
 
                 depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)

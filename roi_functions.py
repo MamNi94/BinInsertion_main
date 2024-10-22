@@ -262,7 +262,7 @@ def shrink_contour(points, factor):
     return new_points.astype(np.int32)
     
     
-def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size_input=10, cut_rect = False, improved_bbox = False):
+def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8,  cut_rect = False, improved_bbox = False):
     masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
     box_detected = False
     min_depth_mm = min_depth * 1000
@@ -309,8 +309,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 x_center = rect_center[0]
                 y_center = rect_center[1]
                 print('center', x_center,y_center)
-                
-            print(extraction_shape)  
+                    
             '''
             # Create a mask for the original convex hull
             hull_mask = np.zeros_like(mask)
@@ -344,7 +343,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
             # Step 10: Apply the region mask to the color image
             masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
-            cv2.imshow('masked_color_image', masked_color_image)
+            #cv2.imshow('masked_color_image', masked_color_image)
 
             box_detected = True
             

@@ -19,9 +19,8 @@ wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x22
 
 
 img_shape = 224
-if img_shape == 224:
-    pass
-    #hole_model = tf.keras.models.load_model('VGG_bincheck_holes_224x224_v2.h5')
+
+hole_model = tf.keras.models.load_model('models\holes\inception_hole_224x224_close.h5')
  
  # Only store the most recent frame
     
@@ -46,10 +45,10 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
     cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
     
     ##Save IMAGE
-    print(cropped_image.shape)
+    
     
     cropped_image = cv2.resize(cropped_image,None,fx = img_shape/cropped_image.shape[1],fy = img_shape/cropped_image.shape[0])
-    print(cropped_image.shape)
+    
     inspect_holes = True
     if cropped_image.shape[0] !=img_shape or cropped_image.shape[1]  != img_shape:
         inspect_holes = False
@@ -60,7 +59,7 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
         img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
         img_array /= 255.0  # Normalize
         prediction = hole_model.predict(img_array)
-      
+        print('hole prediction',prediction[0])
         text_offset_x = 150
         text_offset_y = 80
         if prediction[0] > hole_threshhold:
@@ -69,6 +68,7 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
             cv2.putText(img,f'Failed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 2)
   
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
+    t = time.time()
     factor_x = 224/1920
     factor_y = 224/1080
     input_wallcheck = cv2.resize(masked_color_image,None, fx = factor_x, fy =factor_y)
@@ -78,22 +78,28 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
     img_array /= 255.0  # Normalize
 
-    with tf.device('/GPU:0'):
-        prediction = wall_model.predict(img_array)
-    
-    
+    print('t1',time.time()-t)
+    ###for batch prediction
+    imgs = np.vstack([img_array,img_array])
+    with tf.device('/GPU:0'): 
+     
+     prediction = wall_model.predict(img_array)
+    print('t2',time.time()-t)
+
+    print(prediction)
     height, width = color_image.shape[:2]
     h = np.int0(height/2)
     w = np.int0(width/2)  
     
     print(f'prediction {prediction[0]}')
-    if prediction[0] > 0.9:
+   
+    if prediction[0] > 0.5:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
     else:
         cv2.putText(color_image,f'Wall Check: Failed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
-
+    
 #Initialize
 pipeline = rs.pipeline()
 config = rs.config()
@@ -120,32 +126,17 @@ try:
                 color_image, depth_image = frame_queue.get()
      
                 #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
-                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size= 12, cut_rect= True)
-                
-                
-                #color_image = masked_color_image
+                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8,  cut_rect= True)
+              
                 ####Add Hole Detection
                 if box_detected == True:
-                    
-                    
+
                     #AddWallCheck
-                    #detect_walls(masked_color_image,wall_model_3,1)
-                    #detect_walls(masked_color_image,wall_model_2,2)
-                    #masked_color_image_cut,_, _,_,_ = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.7, erosion_size= 12,cut_rect = True)
+         
                     detect_walls(color_image,masked_color_image,wall_model,1)
         
-                    ###whole bin / Tresh
-                    '''
-                    masked_color_image_bin,cropped_image_bin, hull_bin,box_bin,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.7, erosion_size= 1000, cut_rect = True)
-                    masked_gray =  cv2.cvtColor(masked_color_image_bin, cv2.COLOR_BGR2GRAY)
-                    retval,tresh = cv2.threshold(masked_gray, 125, 255, cv2.THRESH_BINARY)
-                    cv2.imshow('Thresh', tresh)
-                    detect_walls(masked_color_image,wall_model_3,3)
-                    
-                    '''
-                    #color_image = masked_color_image
                     ##
-                    hole_detection = False
+                    hole_detection = True
                     if hole_detection == True:
                         corner_1, corner_2, corner_3, corner_4 = get_corner_points(color_image, box, hull)
                     
@@ -156,16 +147,16 @@ try:
                         ########## draw rectangle
             
                         rect_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1)
-                        rect_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
-                        rect_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
-                        rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
+                       # rect_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
+                        #rect_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
+                        #rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
                             
                         
-                        #image_count = detect_holes(rect_1,color_image,hole_model, img_shape,hole_threshhold = ht)
+                        image_count = detect_holes(rect_1,color_image,hole_model, img_shape,hole_threshhold = ht)
                         #image_count = detect_holes(rect_2,color_image, hole_model,img_shape,hole_threshhold = ht)
                         #image_count = detect_holes(rect_3,color_image,hole_model,img_shape,hole_threshhold = ht)
                         #image_count = detect_holes(rect_4,color_image, hole_model,img_shape,hole_threshhold = ht)
-                    print('end time normal', time.time() - start)
+                    
              
                  
                 scale_factor = 0.6
@@ -174,9 +165,8 @@ try:
                 # Display the images
    
                 cv2.imshow('Color Image', resized_image)
-                #cv2.imshow('masked Image',masked_color_image)
+                print('iteration time: ', time.time() - start)
  
-           
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
       
