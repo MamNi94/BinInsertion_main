@@ -23,8 +23,9 @@ if tf.config.list_physical_devices('GPU'):
 wall_model = tf.keras.models.load_model('models/walls/inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
 frame_queue =queue.Queue(maxsize=1)
 
-def capture_frames(pipeline, align, exit_event):
+def capture_frames(pipeline, align, exit_event,temporal_filter,spatial_filter,hole_filling_filter ):
     global frame_queue
+   
   
     try:
         while not exit_event.is_set():
@@ -36,10 +37,17 @@ def capture_frames(pipeline, align, exit_event):
 
             if not color_frame or not depth_frame:
                 continue
+
+            #filtered_depth_frame = temporal_filter.process(depth_frame) 
+            #filtered_depth_frame = spatial_filter.process(filtered_depth_frame)
+            #filtered_depth_frame = hole_filling_filter.process(filtered_depth_frame)
             
             color_image = np.asanyarray(color_frame.get_data())
-            depth_image = np.asanyarray(depth_frame.get_data())
+            depth_image = np.asanyarray(color_frame.get_data())
 
+            
+            
+            
             # Put the latest frame into the queue
             if not frame_queue.full():
                 frame_queue.put((color_image, depth_image))
@@ -103,8 +111,13 @@ def bincontrol(frame_queue_main:queue.Queue,inserted_bins:queue.Queue,stop_flag:
                
                 color_image = None
                 color_image, depth_image = frame_queue.get()
-                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size= 12, cut_rect= True, improved_bbox=True)
+                masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8, erosion_size_input= 12, cut_rect= True, improved_bbox=False)
 
+
+                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
+                scale_factor = 0.7
+                resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
+                cv2.imshow('depth image',resized_depth_image)
                 if box_detected ==False and box_detected_last_iteration == True and wall_check == True:
                         inserted_bins_count +=1
                         inserted_bins.put(inserted_bins_count)
@@ -150,9 +163,18 @@ def main(frame_queue_main:queue.Queue,inserted_bins:queue.Queue, stop_event):
     align_to = rs.stream.color
     align = rs.align(align_to)
 
+     # 1. Temporal Filter
+    temporal_filter = rs.temporal_filter()
+
+    # 2. Spatial Filter
+    spatial_filter = rs.spatial_filter()
+
+    # 3. Hole Filling Filter
+    hole_filling_filter = rs.hole_filling_filter()
+
     
     # Start the capture thread
-    capture_thread = threading.Thread(target=capture_frames, args=(pipeline, align, stop_event), daemon=True)
+    capture_thread = threading.Thread(target=capture_frames, args=(pipeline, align, stop_event, temporal_filter,spatial_filter,hole_filling_filter), daemon=True)
     capture_thread.start()
     print('capture thread started')
     

@@ -112,10 +112,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             # Step 7: Concatenate all points and create a convex hull
             all_points = np.concatenate(contours)
             hull = cv2.convexHull(all_points)
-            
-            hull_area = cv2.contourArea(hull)
-            erosion_size = int(np.sqrt(hull_area) / erosion_size_input)
-            
+
             extraction_shape = hull
             
             if cut_rect == True:
@@ -123,20 +120,13 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
                 box = np.int0(box) 
                 extraction_shape = box
-                
-                #dynamic erosion size
-                d1 = distance(box[0],box[1])
-                d2 = distance(box[0],box[2])
-                d = max(d1,d2)
-                erosion_size = np.int0(d/erosion_size_input)
+                print(extraction_shape)
                 
                 ####Improved Bounding Box
                 for i in range(4):
                     p = box[i]      # Current point
-
-                    
-                    cv2.putText(color_image,f'corner: {i}', p, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
-                
+                 
+                    cv2.putText(color_image,f'corner: {i}', p, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)                
 
                 max_1, max_2 = get_max_points(box)
                 print(max_1, max_2)
@@ -162,7 +152,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 bin_factor = 1.45 #1.45
                 #bin_factor = 1/1.45
                 calculated_point_1 = (direction * bin_factor * bin_side_length)  + max_1
-                calculated_point_2 = (direction * 1.47 * bin_side_length)  + max_2
+                calculated_point_2 = (direction * bin_factor * bin_side_length)  + max_2
                 
                 cv2.circle(color_image, (np.int0(calculated_point_1[0]),np.int0(calculated_point_1[1])), 3,(255,255,0),3)
                 cv2.circle(color_image, (np.int0(calculated_point_2[0]),np.int0(calculated_point_2[1])), 3,(255,0,255),3)
@@ -182,7 +172,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 x_center = rect_center[0]
                 y_center = rect_center[1]
                 
-
+            print(extraction_shape)
             #cv2.drawContours(hull_mask, [extraction_shape], -1, 255, thickness=cv2.FILLED)
             factor = 0.85  # 80% shrink (inward move)
             extraction_shape = np.array(extraction_shape)
@@ -198,8 +188,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             # Step 8: Shrink the convex hull by using erosion
             #kernel = np.ones((erosion_size, erosion_size), np.uint8)  # Erosion kernel
            # eroded_hull_mask = cv2.erode(hull_mask, kernel, iterations=1)
-            print(hull_mask)
-            print(shrunk_contour)
+       
             
             # Step 9: Compute the mask for the region between the original and shrunken hulls
             region_mask = cv2.bitwise_and(hull_mask, cv2.bitwise_not(shrunk_mask))
@@ -293,7 +282,7 @@ try:
            
 
             #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
-            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= True)
+            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= False)
             
             box_detected = False
             ####Add Hole Detection

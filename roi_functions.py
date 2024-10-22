@@ -251,9 +251,18 @@ def improve_bounding_box(color_image,box):
     box = np.int0(box) 
   
     return box
+
+def shrink_contour(points, factor):
+    # Step 1: Find the centroid (center of mass)
+    centroid = np.mean(points, axis=0)
+
+    # Step 2: Move each point toward the centroid by the factor
+    new_points = (1 - factor) * centroid + factor * points
+
+    return new_points.astype(np.int32)
     
     
-def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size=10, cut_rect = False, improved_bbox = False):
+def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size_input=10, cut_rect = False, improved_bbox = False):
     masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
     box_detected = False
     min_depth_mm = min_depth * 1000
@@ -266,16 +275,14 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
     mask = mask.astype(np.uint8) * 255
 
     # Step 3: Optional - Clean the mask using morphological operations
-    kernel = np.ones((5, 5), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Close small holes
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
+    #kernel = np.ones((5, 5), np.uint8)
+    #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Close small holes
+    #mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
 
     # Step 4: Find contours in the cleaned binary mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    # Step 5: Create an empty mask to draw the contour region
-    contour_mask = np.zeros_like(mask)
-    
+
     # Step 6: Check if any contours were found
     if contours:
         # Optionally filter small contours (this step removes noise)
@@ -285,10 +292,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             # Step 7: Concatenate all points and create a convex hull
             all_points = np.concatenate(contours)
             hull = cv2.convexHull(all_points)
-            
-            hull_area = cv2.contourArea(hull)
-            erosion_size = int(np.sqrt(hull_area) / erosion_size)
-            
+
             extraction_shape = hull
             
             if cut_rect == True:
@@ -296,7 +300,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
                 box = np.int0(box) 
                 extraction_shape = box
-
+                print(extraction_shape)
                 if improved_bbox ==True:
                      extraction_shape = improve_bounding_box(color_image, box)
                 
@@ -304,9 +308,10 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 rect_center = rect[0]
                 x_center = rect_center[0]
                 y_center = rect_center[1]
+                print('center', x_center,y_center)
                 
-                
-                
+            print(extraction_shape)  
+            '''
             # Create a mask for the original convex hull
             hull_mask = np.zeros_like(mask)
             cv2.drawContours(hull_mask, [extraction_shape], -1, 255, thickness=cv2.FILLED)
@@ -320,26 +325,27 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
             # Step 10: Apply the region mask to the color image
             masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
+            '''
+            factor = 0.85  # 80% shrink (inward move)
+            extraction_shape = np.array(extraction_shape)
 
-            # Optionally crop the region between the two hulls from the color image
-            # Find bounding rects of original and shrunken hulls
-            x, y, w, h = cv2.boundingRect(extraction_shape)
-            x_eroded, y_eroded, w_eroded, h_eroded = cv2.boundingRect(cv2.findNonZero(eroded_hull_mask))
+            # Step 1: Shrink the contour points
+            shrunk_contour = shrink_contour(extraction_shape, factor)
 
-            # Adjust the coordinates for the cropped region if necessary
-            x_crop = max(x, x_eroded)
-            y_crop = max(y, y_eroded)
-            w_crop = min(x + w, x_eroded + w_eroded) - x_crop
-            h_crop = min(y + h, y_eroded + h_eroded) - y_crop
+            # Step 2: Create a mask and draw the shrunk contour
+            hull_mask = np.zeros_like(mask)
+            cv2.drawContours(hull_mask, [extraction_shape], -1, 255, thickness=cv2.FILLED)
+            shrunk_mask = np.zeros_like(mask)  # Empty mask for the shrunk contour
+            cv2.drawContours(shrunk_mask, [shrunk_contour], -1, 255, thickness=cv2.FILLED)  # Shrunk filled shape
+        
+            
+            # Step 9: Compute the mask for the region between the original and shrunken hulls
+            region_mask = cv2.bitwise_and(hull_mask, cv2.bitwise_not(shrunk_mask))
 
-            # Crop the color image based on the bounding rectangle of the original hull
-            cropped_image = color_image[y_crop:y_crop+h_crop, x_crop:x_crop+w_crop]
-            cropped_region_mask = region_mask[y_crop:y_crop+h_crop, x_crop:x_crop+w_crop]
-            cropped_image = cv2.bitwise_and(cropped_image, cropped_image, mask=cropped_region_mask)
+            # Step 10: Apply the region mask to the color image
+            masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
+            cv2.imshow('masked_color_image', masked_color_image)
 
-            # Optional: Compute the bounding box for display or other purposes
-            box = cv2.boxPoints(cv2.minAreaRect(hull))
-            box = np.int0(box)
             box_detected = True
             
             #check midpoint
