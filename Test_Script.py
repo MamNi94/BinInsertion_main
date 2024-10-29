@@ -164,63 +164,7 @@ def enlarge_contour(points, factor, max_move_ratio=2):
     return new_points.astype(np.int32)
 
 
-def draw_line(sorted_hull_x, sorted_hull_y, color_image):
-    point1 = sorted_hull_x[0][0]  # Smallest y-coordinate point
-    point2 = sorted_hull_y[1][0]  # Second smallest y-coordinate point
 
-    # Draw the line between the two points on the image
-    cv2.line(color_image, tuple(point1), tuple(point2), (0, 255, 0), 2) 
-
-    dx = point2[0] - point1[0]
-    dy = point2[1] - point1[1]
-
-    # Check for a vertical line to avoid division by zero
-    if dx != 0:
-        slope = dy / dx
-        intercept = point1[1] - slope * point1[0]  # y = mx + b => b = y - mx
-
-        # Define line endpoints: Extend the line horizontally to the image boundaries
-        height, width, _ = color_image.shape
-        x1_extended = 0  # Start at the left boundary (x=0)
-        y1_extended = int(slope * x1_extended + intercept)
-
-        x2_extended = width  # End at the right boundary (x=image width)
-        y2_extended = int(slope * x2_extended + intercept)
-
-        # Draw the extended line on the image
-        cv2.line(color_image, (x1_extended, y1_extended), (x2_extended, y2_extended), (0, 255, 0), 2)
-
-    else:
-        height, width, _ = color_image.shape
-        # Vertical line case: Draw from top to bottom of the image
-        x1_extended = point1[0]
-        y1_extended = 0  # Top of the image
-        x2_extended = point1[0]
-        y2_extended = height  # Bottom of the image
-
-        # Draw the vertical line on the image
-        cv2.line(color_image, (x1_extended, y1_extended), (x2_extended, y2_extended), (0, 255, 0), 2)
-
-def draw_fitted_line(points, image):
-    # Use linear regression (least squares method) to fit a line through the points
-    x_coords = np.array([p[0][0] for p in points])
-    y_coords = np.array([p[0][1] for p in points])
-
-    # Fit a line: y = mx + b
-    if len(x_coords) > 1:  # Ensure there are enough points to fit a line
-        line_params = np.polyfit(x_coords, y_coords, 1)  # Fit a 1st degree polynomial (linear line)
-        slope, intercept = line_params
-
-        # Define line endpoints (extend it to the image boundaries)
-        height, width, _ = image.shape
-        x1_extended = 0  # Start at the left boundary (x=0)
-        y1_extended = int(slope * x1_extended + intercept)
-
-        x2_extended = width  # End at the right boundary (x=image width)
-        y2_extended = int(slope * x2_extended + intercept)
-
-        # Draw the extended line on the image
-        cv2.line(image, (x1_extended, y1_extended), (x2_extended, y2_extended), (255, 255, 0), 2)
 
 
 
@@ -238,11 +182,6 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
     # Step 2: Convert the mask to uint8 for further processing
     mask = mask.astype(np.uint8) * 255
-
-    # Step 3: Optional - Clean the mask using morphological operations
-    #kernel = np.ones((5, 5), np.uint8)
-    #mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)  # Close small holes
-    #mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
 
     # Step 4: Find contours in the cleaned binary mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -268,65 +207,57 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                 print(extraction_shape)
                 
                 ####Improved Bounding Box
-                for i in range(4):
-                    p = box[i]      # Current point
-                 
-                    #cv2.putText(color_image,f'corner: {i}', p, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)                
-
-                max_1, max_2 = get_max_points(box)
-                print(max_1, max_2)
-               
-                bin_side_length = np.round(distance(max_1,max_2))
-                    
-                #cv2.putText(color_image,f'p1', (max_1[0], max_1[1]+30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
-                #cv2.putText(color_image,f'p2', (max_2[0],max_2[1] + 30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
-                #cv2.putText(color_image,f'right wall length: {bin_side_length}', (np.int0(max_2[0])-100,np.int0((max_2[1]+max_1[1])/2) ) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
-                #cv2.putText(color_image,f'top wall length: {bin_side_length}', (np.int0((max_2[0]+max_1[0])/2), (np.int0(max_2[1])+100)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
-                
-                if max_1[1] > max_2[1]:
-                    direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
-                else:
-                    direction = np.array([(max_1[1]-max_2[1])/bin_side_length,-(max_1[0] - max_2[0])/bin_side_length])
-                #if max_1[0] > max_2[0]:
-                  #  direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
-                    #print('heey')
-                #else:
-                    #direction = np.array([(((max_1[1]-max_2[1])/bin_side_length)-0.01),-(max_1[0] - max_2[0])/bin_side_length])
-                   # print('hoo')
-                print('direction',direction)
-                bin_factor = 1.45 #1.45
-                #bin_factor = 1/1.45
-                calculated_point_1 = (direction * bin_factor * bin_side_length)  + max_1
-                calculated_point_2 = (direction * bin_factor * bin_side_length)  + max_2
-                
-                #cv2.circle(color_image, (np.int0(calculated_point_1[0]),np.int0(calculated_point_1[1])), 3,(255,255,0),3)
-                #cv2.circle(color_image, (np.int0(calculated_point_2[0]),np.int0(calculated_point_2[1])), 3,(255,0,255),3)
-                
-                print(calculated_point_1, calculated_point_2, max_1,max_2)
-                all_points = np.array([np.int0(calculated_point_1), np.int0(calculated_point_2), max_2,max_1])
-                box = cv2.convexHull(all_points)
-                #box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
-                #box = np.int0(box) 
                 if improved_bounding_box ==True:
-                    extraction_shape = box
+                    for i in range(4):
+                        p = box[i]      # Current point
+                    
+                        #cv2.putText(color_image,f'corner: {i}', p, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)                
+
+                    max_1, max_2 = get_max_points(box)
+                    print(max_1, max_2)
                 
-                #####Improved Bounding Box End
+                    bin_side_length = np.round(distance(max_1,max_2))
+                        
+                    #cv2.putText(color_image,f'p1', (max_1[0], max_1[1]+30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+                    #cv2.putText(color_image,f'p2', (max_2[0],max_2[1] + 30) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+                    #cv2.putText(color_image,f'right wall length: {bin_side_length}', (np.int0(max_2[0])-100,np.int0((max_2[1]+max_1[1])/2) ) , cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+                    #cv2.putText(color_image,f'top wall length: {bin_side_length}', (np.int0((max_2[0]+max_1[0])/2), (np.int0(max_2[1])+100)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+                    
+                    if max_1[1] > max_2[1]:
+                        direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
+                    else:
+                        direction = np.array([(max_1[1]-max_2[1])/bin_side_length,-(max_1[0] - max_2[0])/bin_side_length])
+                    #if max_1[0] > max_2[0]:
+                    #  direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
+                        #print('heey')
+                    #else:
+                        #direction = np.array([(((max_1[1]-max_2[1])/bin_side_length)-0.01),-(max_1[0] - max_2[0])/bin_side_length])
+                    # print('hoo')
+                    print('direction',direction)
+                    bin_factor = 1.45 #1.45
+                    #bin_factor = 1/1.45
+                    calculated_point_1 = (direction * bin_factor * bin_side_length)  + max_1
+                    calculated_point_2 = (direction * bin_factor * bin_side_length)  + max_2
+                    
+                    #cv2.circle(color_image, (np.int0(calculated_point_1[0]),np.int0(calculated_point_1[1])), 3,(255,255,0),3)
+                    #cv2.circle(color_image, (np.int0(calculated_point_2[0]),np.int0(calculated_point_2[1])), 3,(255,0,255),3)
+                    
+                    print(calculated_point_1, calculated_point_2, max_1,max_2)
+                    all_points = np.array([np.int0(calculated_point_1), np.int0(calculated_point_2), max_2,max_1])
+                    box = cv2.convexHull(all_points)
+                    #box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
+                    #box = np.int0(box) 
+                    if improved_bounding_box ==True:
+                        extraction_shape = box
+                    
+                    #####Improved Bounding Box End
                 
                 #get rect midpoint
                 rect_center = rect[0]
                 x_center = rect_center[0]
                 y_center = rect_center[1]
                 
-            ##experiment
-            #sorted_hull_x = sorted(hull, key=lambda p: (p[0][1], p[0][0]))
-            #sorted_hull_y = sorted(hull, key=lambda p: (-p[0][1], p[0][0]))
-            #sorted_hull_y = sorted(hull, key=lambda p: (-p[0][0], p[0][1]))
-            #draw_line(sorted_hull_x,sorted_hull_y, color_image)
-            #draw_line(sorted_hull, color_image)
-            #sorted_hull = sorted(hull, key=lambda p: (p[0][0], p[0][1]))
-            #draw_line(sorted_hull, color_image)
-            #sorted_hull = sorted(hull, key=lambda p: (-p[0][0], p[0][1]))
-            #draw_line(sorted_hull, color_image)
+     
           
             # Get the two points with the smallest y-coordinates
             
@@ -338,25 +269,27 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             #extraction_shape = enlarge_contour(extraction_shape, factor)
 
             # Step 1: Shrink the contour points
-            factor = 0.10# 80% shrink (inward move)
+            factor = 0.12# 80% shrink (inward move)
             shrunk_contour = shrink_contour_stable(shape, min_move_ratio=0.05, factor=factor)
-            #shrunk_contour = shrink_contour_stable(shrunk_contour, min_move_ratio=0.05, factor=factor)
-            #shrunk_contour = shrink_contour_stable(shrunk_contour, min_move_ratio=0.05, factor=factor)
+   
             # Step 2: Create a mask and draw the shrunk contour
             hull_mask = np.zeros_like(mask)
             cv2.drawContours(hull_mask, [extraction_shape], -1, 255, thickness=cv2.FILLED)
             shrunk_mask = np.zeros_like(mask)  # Empty mask for the shrunk contour
             cv2.drawContours(shrunk_mask, [shrunk_contour], -1, 255, thickness=cv2.FILLED)  # Shrunk filled shape
-            # Step 8: Shrink the convex hull by using erosion
-            #kernel = np.ones((erosion_size, erosion_size), np.uint8)  # Erosion kernel
-           # eroded_hull_mask = cv2.erode(hull_mask, kernel, iterations=1)
-       
-            
+        
+
             # Step 9: Compute the mask for the region between the original and shrunken hulls
             region_mask = cv2.bitwise_and(hull_mask, cv2.bitwise_not(shrunk_mask))
 
             # Step 10: Apply the region mask to the color image
-            masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
+            print('hi')
+            print('region mask ', region_mask)
+            if region_mask.any():
+                masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
+                print('masked',masked_color_image)
+            else:
+                masked_color_image = None
             #cv2.imshow('masked_color_image', masked_color_image)
             # Optionally crop the region between the two hulls from the color image
             # Find bounding rects of original and shrunken hulls
@@ -388,6 +321,8 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
         
         cv2.circle(masked_color_image, (w,h), 7, (0, 200, 0), 5)
         cv2.putText(masked_color_image,f'Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+
+
      
 
     return masked_color_image, cropped_image, hull, box, box_detected
@@ -422,6 +357,9 @@ hole_filling_filter = rs.hole_filling_filter()
 
 #capture_thread.start()
 cutting_depth = 0.8
+#get first last frame
+
+
 
 try:
     while True:
@@ -440,7 +378,9 @@ try:
             filtered_depth_frame = hole_filling_filter.process(filtered_depth_frame)
 
             
-            color_image = np.asanyarray(color_frame.get_data())
+            raw_color_image = np.asanyarray(color_frame.get_data())
+            color_image = raw_color_image
+            
             depth_image = np.asanyarray(filtered_depth_frame.get_data())
             
 
@@ -454,20 +394,34 @@ try:
             cv2.imshow('test', masked_color_image)
             #box_detected = False
             ####Add Hole Detection
+            
+            
             if box_detected == True:
-                
+
+
+    
                 detect_walls(color_image,masked_color_image,wall_model,1)
                 #color_image = masked_color_image
+
+
+                
                 
         
-            scale_factor = 0.3
-            resized_masked_image = cv2.resize(masked_color_image,None,fx =  scale_factor,fy = scale_factor)
+            scale_factor = 0.4
             resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)
+            
+            #print(masked_color_image)
+            if masked_color_image is not None and   isinstance(masked_color_image, np.ndarray):
+                print(masked_color_image)
+                resized_masked_image = cv2.resize(masked_color_image,None,fx =  scale_factor,fy = scale_factor)
+                # Create the top horizontal stack
+                top_row = np.hstack((resized_masked_image, resized_color_image))
+                cv2.imshow('Color Images', top_row)
+            else:
+                cv2.imshow('Color Images', resized_color_image)
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
 
-            # Create the top horizontal stack
-            top_row = np.hstack((resized_masked_image, resized_color_image))
-            cv2.imshow('Color Images', top_row)
+            
 
             
     
@@ -475,6 +429,7 @@ try:
                 break
             
                 # Display the images
+    
             print(time.time()-loop_start)
             #cv2.imshow('masked Image',masked_color_image)
             #cv2.imshow('Depth Image', resized_depth_image)
