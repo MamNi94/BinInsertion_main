@@ -113,8 +113,18 @@ frame_queue = queue.Queue(maxsize=1)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
+temporal_filter = rs.temporal_filter()
 
-capture_thread = threading.Thread(target=capture_frames, args = (pipeline,frame_queue,align), daemon=True)
+# 2. Spatial Filter
+spatial_filter = rs.spatial_filter()
+
+# 3. Hole Filling Filter
+hole_filling_filter = rs.hole_filling_filter()
+
+
+
+
+capture_thread = threading.Thread(target=capture_frames, args = (pipeline,frame_queue,align, temporal_filter,spatial_filter,hole_filling_filter), daemon=True)
 
 capture_thread.start()
 
@@ -124,10 +134,16 @@ try:
         
                 start = time.time()
                 color_image, depth_image = frame_queue.get()
+
+               
+
+                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
+                cv2.imshow('test', depth_colormap)
      
                 #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = 0.8,  cut_rect= True)
-              
+                cv2.imshow('mask', masked_color_image)
+                
                 ####Add Hole Detection
                 if box_detected == True:
 
@@ -136,7 +152,7 @@ try:
                     detect_walls(color_image,masked_color_image,wall_model,1)
         
                     ##
-                    hole_detection = True
+                    hole_detection = False
                     if hole_detection == True:
                         corner_1, corner_2, corner_3, corner_4 = get_corner_points(color_image, box, hull)
                     

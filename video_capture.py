@@ -8,7 +8,10 @@ import pyrealsense2 as rs
 import cv2
 
 
-def capture_frames(pipeline,frame_queue,align):
+def capture_frames(pipeline,frame_queue,align, temporal_filter=None, spatial_filter=None, hole_filling_filter=None):
+
+    
+
     while True:
         
         frames = pipeline.wait_for_frames()
@@ -16,11 +19,16 @@ def capture_frames(pipeline,frame_queue,align):
         color_frame = aligned_frames.get_color_frame()
         depth_frame = aligned_frames.get_depth_frame()
 
+        if temporal_filter is not None:
+            filtered_depth_frame = temporal_filter.process(depth_frame) 
+            filtered_depth_frame = spatial_filter.process(filtered_depth_frame)
+            filtered_depth_frame = hole_filling_filter.process(filtered_depth_frame)
+
         if not color_frame or not depth_frame:
             continue
         
         color_image = np.asanyarray(color_frame.get_data())
-        depth_image = np.asanyarray(depth_frame.get_data())
+        depth_image = np.asanyarray(filtered_depth_frame.get_data())
     
         # Put the latest frame into the queue, discard older frames
         if not frame_queue.full():
