@@ -24,6 +24,8 @@ stop_flag = threading.Event()
 main_thread = None
 
 
+
+
 def show_about():
     messagebox.showinfo("About", "This is a the Kardex BINcontrol app")
     
@@ -35,7 +37,7 @@ def start_bincontrol():
 
     stop_flag.clear()
     #main_thread = threading.Thread(target = GUIBincontrol.main, args = (frame_queue_main,inserted_bins,stop_flag,), daemon = True)
-    main_thread = threading.Thread(target = GUIBincontrol_v2.main, args = (stop_flag,), daemon = True)
+    main_thread = threading.Thread(target = GUIBincontrol_v2.main, args = (inserted_bins,stop_flag,), daemon = True)
     main_thread.start()
     
 def terminate_bincontrol():
@@ -92,14 +94,14 @@ def update_frame():
 # Create the main window
 root = tk.Tk()
 root.title("BINsertion app alpha")
-root.geometry("1600x900")
+root.geometry("1200x800")
 
 i = tk.IntVar()
 i.set(0)
    
 image_path = 'background_2.jpg'
 image = Image.open(image_path)
-new_size = (1600, 900)  # Set your desired dimensions here
+new_size = (1200, 800)  # Set your desired dimensions here
 resized_image = image.resize(new_size, Image.LANCZOS)
 photo = ImageTk.PhotoImage(resized_image)
 
@@ -151,10 +153,10 @@ click_button = tk.Button(root, text="End Bincontrol", bg = 'orange', command=ter
 click_button.place(x = 50,y = 160)
 
 exit_button = tk.Button(root, text="Exit", width = 5, height = 2,bg = 'red', fg = 'white',command=exit_program)
-exit_button.place(x = 1500, y = 830)
+exit_button.place(x = 1000, y = 700)
 
 #update_frame() 
-#update_variable_display()
+update_variable_display()
 # Run the application
 root.mainloop()
 

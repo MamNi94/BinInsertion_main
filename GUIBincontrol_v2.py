@@ -9,6 +9,7 @@ import time
 import threading
 import math
 
+
 detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
@@ -18,6 +19,7 @@ if detection == True:
 
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
     t = time.time()
+    wallcheck = False
     factor_x = 224/1920
     factor_y = 224/1080
     input_wallcheck = cv2.resize(masked_color_image,None, fx = factor_x, fy =factor_y)
@@ -30,9 +32,8 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     print('t1',time.time()-t)
     ###for batch prediction
     imgs = np.vstack([img_array,img_array])
-    with tf.device('/GPU:0'): 
-     
-     prediction = wall_model.predict(img_array)
+    with tf.device('/GPU:0'):  
+        prediction = wall_model.predict(img_array)
     print('t2',time.time()-t)
 
     print(prediction)
@@ -45,13 +46,14 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     if prediction[0] > 0.5:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+        wallcheck = True
     else:
         cv2.putText(color_image,f'Wall Check: Failed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
 
 
 
-
+    return wallcheck
 
 
 def shrink_contour(points, factor):
@@ -226,7 +228,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
 
 
-def main(stop_flag:threading.Event()):
+def main(inserted_bins:queue.Queue,stop_flag:threading.Event()):
     #Initialize
     pipeline = rs.pipeline()
     config = rs.config()
@@ -257,10 +259,14 @@ def main(stop_flag:threading.Event()):
     cutting_depth = 0.8
     #get first last frame
 
-
+    inserted_bins_count = 0
+    box_detected_last_iteration = False
+    wall_check = False
 
     try:
         while True:
+                
+
                 loop_start = time.time()
                 frames = pipeline.wait_for_frames()
                 aligned_frames = align.process(frames)
@@ -291,16 +297,22 @@ def main(stop_flag:threading.Event()):
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= False)
     
                 #box_detected = False
-                ####Add Hole Detection
-                
+                ####Add Hole Detection  
+                print('inserted bins count:',inserted_bins_count)
+              
+                if box_detected == False and box_detected_last_iteration == True and wall_check == True:
+                        inserted_bins_count +=1
+                       # if inserted_bins.full():
+                          #  inserted_bins.get()
+                        inserted_bins.put(inserted_bins_count)
+                        print('check 2')
                 
                 if box_detected == True:
-
-        
-                    detect_walls(color_image,masked_color_image,wall_model,1)
+                    wall_check = detect_walls(color_image,masked_color_image,wall_model,1)
                     #color_image = masked_color_image           
                     
-            
+                box_detected_last_iteration = box_detected
+
                 scale_factor = 0.4
                 resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)
                 
@@ -348,7 +360,7 @@ def main(stop_flag:threading.Event()):
 
         
 if __name__ == "__main__":
-    stop_flag = threading.Event()
-
-    main(stop_flag)
+    #stop_flag = threading.Event()
+    #inserted_bins = queue.Queue(maxsize = 1)
+    main()
         
