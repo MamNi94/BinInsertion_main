@@ -299,7 +299,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             #check midpoint
             height, width = color_image.shape[:2]
             if cut_rect == True:
-                if abs(y_center-(height/2)) > 30 or abs(x_center-(width/2)) > 70 :
+                if abs(y_center-(height/2)) > 50 or abs(x_center-(width/2)) > 70 :
                     box_detected = False
         
     if box_detected == False:

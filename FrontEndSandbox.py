@@ -7,6 +7,7 @@ import threading
 import pyrealsense2 as rs
 import queue
 import GUIBincontrol
+import GUIBincontrol_v2
 import cv2
 import os
 
@@ -33,7 +34,8 @@ def start_bincontrol():
     global main_thread
 
     stop_flag.clear()
-    main_thread = threading.Thread(target = GUIBincontrol.main, args = (frame_queue_main,inserted_bins,stop_flag,), daemon = True)
+    #main_thread = threading.Thread(target = GUIBincontrol.main, args = (frame_queue_main,inserted_bins,stop_flag,), daemon = True)
+    main_thread = threading.Thread(target = GUIBincontrol_v2.main, args = (stop_flag,), daemon = True)
     main_thread.start()
     
 def terminate_bincontrol():
@@ -151,8 +153,8 @@ click_button.place(x = 50,y = 160)
 exit_button = tk.Button(root, text="Exit", width = 5, height = 2,bg = 'red', fg = 'white',command=exit_program)
 exit_button.place(x = 1500, y = 830)
 
-update_frame() 
-update_variable_display()
+#update_frame() 
+#update_variable_display()
 # Run the application
 root.mainloop()
 

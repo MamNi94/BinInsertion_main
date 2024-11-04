@@ -260,6 +260,175 @@ def shrink_contour(points, factor):
     new_points = (1 - factor) * centroid + factor * points
 
     return new_points.astype(np.int32)
+
+def shrink_contour_stable(points, factor, min_move_ratio=0.1, max_move_ratio=0.5):
+    # Step 1: Find the centroid (center of mass)
+    centroid = np.mean(points, axis=0)
+    
+    # Step 2: Calculate the distances from each point to the centroid
+    distances = np.linalg.norm(points - centroid, axis=1)
+
+    # Step 3: Calculate move distances
+    move_distances = factor * distances  # Distance to move each point
+
+    # Step 4: Introduce a min and max move ratio to control movements
+    min_allowed_move = min_move_ratio * np.mean(distances)  # Limit how little points can move
+    max_allowed_move = max_move_ratio * np.mean(distances)  # Limit how far points can move
+    move_distances = np.clip(move_distances, min_allowed_move, max_allowed_move)  # Clamp movements
+
+    # Step 5: Calculate the new positions
+    move_directions = centroid - points  # Direction vectors toward the centroid
+    move_vectors = move_directions / np.linalg.norm(move_directions, axis=1, keepdims=True)  # Normalize
+
+    new_points = points + move_vectors * move_distances[:, np.newaxis]  # Move points inward
+
+    return new_points.astype(np.int32)
+
+
+def cut_region_between_hulls_v2(depth_image, color_image, min_depth=0, max_depth=0.8,  cut_rect = False, improved_bounding_box = False):
+    masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
+    box_detected = False
+    min_depth_mm = min_depth * 1000
+    max_depth_mm = max_depth * 1000
+
+    # Step 1: Create a binary mask based on the depth range
+    mask = np.logical_and(depth_image > min_depth_mm, depth_image < max_depth_mm)
+
+    # Step 2: Convert the mask to uint8 for further processing
+    mask = mask.astype(np.uint8) * 255
+
+    if mask.dtype != np.uint8:
+     mask = cv2.convertScaleAbs(mask, alpha=(255.0 / mask.max()))
+
+    # Step 4: Find contours in the cleaned binary mask
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Step 6: Check if any contours were found
+    if contours:
+        # Optionally filter small contours (this step removes noise)
+        contours = [cnt for cnt in contours if cv2.contourArea(cnt) > 100]  # Adjust the area threshold
+
+        if contours:  # Check again after filtering
+            # Step 7: Concatenate all points and create a convex hull
+
+            largest_contour = max(contours, key=cv2.contourArea)
+            all_points = largest_contour
+            hull = cv2.convexHull(largest_contour)
+            extraction_shape = hull
+            
+            if cut_rect == True:
+                rect = cv2.minAreaRect(all_points)
+                box = cv2.boxPoints(rect)  # Get the four vertices of the rectangle
+                box = np.int0(box) 
+                extraction_shape = box
+                
+                ####Improved Bounding Box
+                if improved_bounding_box ==True:
+                    for i in range(4):
+                        p = box[i]      # Current point
+                    
+                        #cv2.putText(color_image,f'corner: {i}', p, cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)                
+
+                    max_1, max_2 = get_max_points(box)
+                 
+                
+                    bin_side_length = np.round(distance(max_1,max_2))
+                        
+                  
+                    if max_1[1] > max_2[1]:
+                        direction = np.array([-(max_1[1]-max_2[1])/bin_side_length,(max_1[0] - max_2[0])/bin_side_length])
+                    else:
+                        direction = np.array([(max_1[1]-max_2[1])/bin_side_length,-(max_1[0] - max_2[0])/bin_side_length])
+               
+                    bin_factor = 1.45 #1.45
+                    #bin_factor = 1/1.45
+                    calculated_point_1 = (direction * bin_factor * bin_side_length)  + max_1
+                    calculated_point_2 = (direction * bin_factor * bin_side_length)  + max_2
+      
+                    
+                    print(calculated_point_1, calculated_point_2, max_1,max_2)
+                    all_points = np.array([np.int0(calculated_point_1), np.int0(calculated_point_2), max_2,max_1])
+                    box = cv2.convexHull(all_points)
+                 
+                    if improved_bounding_box ==True:
+                        extraction_shape = box
+                    
+                    #####Improved Bounding Box End
+                
+                #get rect midpoint
+                rect_center = rect[0]
+                x_center = rect_center[0]
+                y_center = rect_center[1]
+                
+     
+          
+            # Get the two points with the smallest y-coordinates
+            
+            #end experiment
+
+            factor = 0.02  # 80% shrink (inward move)
+            extraction_shape = np.array(extraction_shape)
+            shape = extraction_shape
+            #extraction_shape = enlarge_contour(extraction_shape, factor)
+
+            # Step 1: Shrink the contour points
+            factor = 0.12# 80% shrink (inward move)
+            shrunk_contour = shrink_contour_stable(shape, min_move_ratio=0.05, factor=factor)
+   
+            # Step 2: Create a mask and draw the shrunk contour
+            hull_mask = np.zeros_like(mask)
+            cv2.drawContours(hull_mask, [extraction_shape], -1, 255, thickness=cv2.FILLED)
+            shrunk_mask = np.zeros_like(mask)  # Empty mask for the shrunk contour
+            cv2.drawContours(shrunk_mask, [shrunk_contour], -1, 255, thickness=cv2.FILLED)  # Shrunk filled shape
+        
+
+            # Step 9: Compute the mask for the region between the original and shrunken hulls
+            region_mask = cv2.bitwise_and(hull_mask, cv2.bitwise_not(shrunk_mask))
+
+            # Step 10: Apply the region mask to the color image
+            print('hi')
+            print('region mask ', region_mask)
+            if region_mask.any():
+                masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
+                print('masked',masked_color_image)
+            else:
+                masked_color_image = None
+            #cv2.imshow('masked_color_image', masked_color_image)
+            # Optionally crop the region between the two hulls from the color image
+            # Find bounding rects of original and shrunken hulls
+          
+            box_detected = True
+            
+            #check midpoint
+            height, width = color_image.shape[:2]
+            if cut_rect == True:
+                if abs(y_center-(height/2)) > 50 or abs(x_center-(width/2)) > 70 :
+                    box_detected = False
+        
+    if box_detected == False:
+        height, width = color_image.shape[:2]
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
+        cv2.circle(color_image, (w,h), 7, (0, 0, 200), 5)
+        cv2.putText(color_image,f'No Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
+        
+        cv2.circle(masked_color_image, (w,h), 7, (0, 0, 200), 5)
+        cv2.putText(masked_color_image,f'No Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
+        
+    if box_detected == True:
+        height, width = color_image.shape[:2]
+        h = np.int0(height/2)
+        w = np.int0(width/2)      
+        cv2.circle(color_image, (w,h), 7, (0, 200, 0), 5)
+        cv2.putText(color_image,f'Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+        
+        cv2.circle(masked_color_image, (w,h), 7, (0, 200, 0), 5)
+        cv2.putText(masked_color_image,f'Bin Detected', (w-60,h-30), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+
+
+     
+
+    return masked_color_image, cropped_image, hull, box, box_detected
     
     
 def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8,  cut_rect = False, improved_bbox = False):
