@@ -2,8 +2,7 @@ import numpy as np
 import pyrealsense2 as rs
 import cv2
 
-from video_capture import capture_frames
-
+from roi_functions import get_corner_points, get_shifted_points, draw_rotated_rectangle
 import queue
 import time
 import threading
@@ -15,6 +14,50 @@ if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
     wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+    hole_model = tf.keras.models.load_model('models\holes\inception_hole_224x224_close.h5')
+
+def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
+    
+    
+    rect = np.array(rect,dtype = np.float32)
+    width = np.linalg.norm(rect[0] - rect[1])
+    height = np.linalg.norm(rect[0] - rect[3])
+
+    dst_pts = np.array([
+        [0, 0],
+        [width, 0],
+        [width, height],
+        [0, height]
+    ], dtype="float32")
+
+    # Compute the perspective transform matrix
+    M = cv2.getPerspectiveTransform(rect, dst_pts)
+
+    # Perform the perspective transformation (i.e., crop the image)
+    cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
+    
+    ##Save IMAGE
+    
+    
+    cropped_image = cv2.resize(cropped_image,None,fx = img_shape/cropped_image.shape[1],fy = img_shape/cropped_image.shape[0])
+    
+    inspect_holes = True
+    if cropped_image.shape[0] !=img_shape or cropped_image.shape[1]  != img_shape:
+        inspect_holes = False
+    #model
+    if inspect_holes == True:
+        img_array = image.img_to_array(cropped_image)
+        
+        img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
+        img_array /= 255.0  # Normalize
+        prediction = hole_model.predict(img_array)
+        print('hole prediction',prediction[0])
+        text_offset_x = 150
+        text_offset_y = 80
+        if prediction[0] > hole_threshhold:
+            cv2.putText(img,f'Passed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 2)
+        else:
+            cv2.putText(img,f'Failed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 2)
 
 
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
@@ -302,14 +345,28 @@ def main(inserted_bins:queue.Queue,stop_flag:threading.Event()):
               
                 if box_detected == False and box_detected_last_iteration == True and wall_check == True:
                         inserted_bins_count +=1
-                       # if inserted_bins.full():
-                          #  inserted_bins.get()
+                        if inserted_bins.full():
+                            inserted_bins.get()
                         inserted_bins.put(inserted_bins_count)
                         print('check 2')
                 
-                if box_detected == True:
+                if box_detected == True and detection == True:
                     wall_check = detect_walls(color_image,masked_color_image,wall_model,1)
-                    #color_image = masked_color_image           
+                    #color_image = masked_color_image   
+                    hole_detection = True
+                    if hole_detection == True:
+                        corner_1, corner_2, corner_3, corner_4 = get_corner_points(color_image, box, hull)
+                    
+                        edge_scale_factor = 0.2
+        
+                        p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4)
+
+                        ########## draw rectangle
+            
+                        rect_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1)
+                            
+                        
+                        image_count = detect_holes(rect_1,color_image,hole_model)        
                     
                 box_detected_last_iteration = box_detected
 
@@ -360,7 +417,11 @@ def main(inserted_bins:queue.Queue,stop_flag:threading.Event()):
 
         
 if __name__ == "__main__":
-    #stop_flag = threading.Event()
-    #inserted_bins = queue.Queue(maxsize = 1)
-    main()
+    test_mode = True
+    if test_mode ==True:
+        stop_flag = threading.Event()
+        inserted_bins = queue.Queue(maxsize = 1)
+        main(inserted_bins, stop_flag)
+    else:
+        main()
         
