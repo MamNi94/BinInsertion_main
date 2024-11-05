@@ -20,7 +20,8 @@ factor_15_dir = "dataset/factor15"
 hole_dir = "dataset/holes"
 color_image_dir = "dataset/color_image"
 
-image_class = 'positive'
+image_class_bin = 'negative'
+image_class_hole = 'positive'
 
 # Create 'positive' and 'negative' directories if they don't exist
 os.makedirs(os.path.join(hull_dir, "positive"), exist_ok=True)
@@ -370,8 +371,8 @@ hole_filling_filter = rs.hole_filling_filter()
 cutting_depth = 0.8
 #get first last frame
 
-i = get_highest_image_index(factor_12_dir, image_class)
-h =get_highest_image_index(hole_dir, image_class)
+i = get_highest_image_index(factor_12_dir, image_class_bin)
+h =get_highest_image_index(hole_dir, image_class_hole)
 
 box_detected_old = False
 box_detected_counter = 0
@@ -414,19 +415,19 @@ try:
             if box_detected == False:
                  box_detected_counter =0
             if box_detected == True and  box_detected_counter > 30:
-                image_name = f'{image_class}_{i}.jpg'
-                save_image(color_image,image_class, image_name, color_image_dir)
+                image_name = f'{image_class_bin}_{i}.jpg'
+                save_image(color_image,image_class_bin, image_name, color_image_dir)
                 
                 box_detected_counter =0
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, shrink_factor=0.15, cut_rect= False, improved_bounding_box= False)
                 
-                save_image(masked_color_image,image_class, image_name, hull_dir)
+                save_image(masked_color_image,image_class_bin, image_name, hull_dir)
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, shrink_factor=0.1, cut_rect= True, improved_bounding_box= False)
-                save_image(masked_color_image,image_class, image_name, factor_10_dir)
+                save_image(masked_color_image,image_class_bin, image_name, factor_10_dir)
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, shrink_factor=0.12, cut_rect= True, improved_bounding_box= False)
-                save_image(masked_color_image,image_class, image_name, factor_12_dir)
+                save_image(masked_color_image,image_class_bin, image_name, factor_12_dir)
                 masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, shrink_factor=0.15, cut_rect= True, improved_bounding_box= False)
-                save_image(masked_color_image,image_class, image_name, factor_15_dir)
+                save_image(masked_color_image,image_class_bin, image_name, factor_15_dir)
                 i+=1
                 save_holes = True
                 if save_holes == True:
@@ -439,16 +440,16 @@ try:
                         ########## draw rectangle
                      
                         hole_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1)
-                        save_image(hole_1,image_class, f'{image_class}_{h}.jpg', hole_dir)
+                        save_image(hole_1,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
                         h+=1
                         hole_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
-                        save_image(hole_2,image_class, f'{image_class}_{h}.jpg', hole_dir)
+                        save_image(hole_2,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
                         h+=1
                         hole_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
-                        save_image(hole_3,image_class, f'{image_class}_{h}.jpg', hole_dir)
+                        save_image(hole_3,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
                         h+=1
                         hole_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
-                        save_image(hole_4,image_class, f'{image_class}_{h}.jpg', hole_dir)
+                        save_image(hole_4,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
                         h+=1
 
             box_detected_old = box_detected
