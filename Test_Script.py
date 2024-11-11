@@ -9,11 +9,12 @@ import time
 import threading
 import math
 
-detection = True
+detection = False
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
     wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+
 
 
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
@@ -171,7 +172,7 @@ def enlarge_contour(points, factor, max_move_ratio=2):
 def distance(p1, p2):
     return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
 
-def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size_input=10, cut_rect = False, improved_bounding_box = False):
+def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, factor=0.12, cut_rect = False, improved_bounding_box = False):
     masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
     box_detected = False
     min_depth_mm = min_depth * 1000
@@ -179,6 +180,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
     # Step 1: Create a binary mask based on the depth range
     mask = np.logical_and(depth_image > min_depth_mm, depth_image < max_depth_mm)
+
 
     # Step 2: Convert the mask to uint8 for further processing
     mask = mask.astype(np.uint8) * 255
@@ -263,13 +265,13 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             
             #end experiment
 
-            factor = 0.02  # 80% shrink (inward move)
+            
             extraction_shape = np.array(extraction_shape)
             shape = extraction_shape
             #extraction_shape = enlarge_contour(extraction_shape, factor)
 
             # Step 1: Shrink the contour points
-            factor = 0.12# 80% shrink (inward move)
+            
             shrunk_contour = shrink_contour_stable(shape, min_move_ratio=0.05, factor=factor)
    
             # Step 2: Create a mask and draw the shrunk contour
@@ -356,7 +358,7 @@ hole_filling_filter = rs.hole_filling_filter()
 #capture_thread = threading.Thread(target=capture_frames, args = (pipeline,frame_queue,align), daemon=True)
 
 #capture_thread.start()
-cutting_depth = 0.8
+cutting_depth = 0.75
 #get first last frame
 
 
@@ -386,17 +388,43 @@ try:
            
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
 
-          
+
+    
+            K =5
+            kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
+
+            # Apply dilation followed by erosion (this is called "closing")
+            depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_ERODE, kernel)
+            #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
+     
+            #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE, kernel)
+            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
+           
+
+            hsv_map = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2HSV)
+
+            # Define HSV range for blue
+            lower_blue = np.array([70, 50, 50])    # Adjust these values if needed
+            upper_blue = np.array([130, 255, 255]) # to precisely match your blue shade
+
+            # Create a mask to isolate blue regions
+            blue_mask = cv2.inRange(hsv_map, lower_blue, upper_blue)
+
+            # Apply the mask to retain only the blue areas
+            blue_only = cv2.bitwise_and(depth_colormap, depth_colormap, mask=blue_mask)
+            blue_gray = cv2.cvtColor(blue_only, cv2.COLOR_BGR2GRAY)
+            #depth_image = cv2.normalize(blue_gray, None, 0, 255, cv2.NORM_MINMAX)
+            
+            #Improve Depth Image
 
             scale_factor = 0.5
             resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
             cv2.imshow('Depth Image_', resized_depth_image)
             #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
-            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= False)
-
-            edges = cv2.Canny(masked_color_image, 170, 220)
-
-            cv2.imshow('Canny', edges)
+            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth =0,max_depth = cutting_depth, factor= 0.12, cut_rect= True, improved_bounding_box= False)
+            if get_H == True:
+                masked_color_image_top_down,cropped_image_top_down, hull,box,box_detected = cut_region_between_hulls(top_down_depth,top_down_color,min_depth =0,max_depth = cutting_depth, factor= 0.12, cut_rect= True, improved_bounding_box= False)
             #box_detected = False
             ####Add Hole Detection
             
@@ -425,6 +453,7 @@ try:
             else:
                 cv2.imshow('Color Images', resized_color_image)
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
+  
 
             
 
