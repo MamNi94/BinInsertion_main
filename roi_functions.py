@@ -538,7 +538,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
     return masked_color_image, cropped_image, hull, box, box_detected
 
-def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4):
+def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4, offset = 20):
         side_lengths = [
                         (distance(corner_1, corner_2), (corner_1, corner_2)),
                         (distance(corner_2, corner_3), (corner_2, corner_3)),
@@ -568,6 +568,24 @@ def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4):
         x4 = longest_sides_coords[1][1][0]
         y4 = longest_sides_coords[1][1][1]
 
+
+        y_values = [y1, y2, y3, y4]
+
+        # Calculate the average of the y-values
+        average_y = sum(y_values) / len(y_values)
+
+        # Apply adjustments based on whether the value is above or below the average
+        adjusted_y_values = []
+
+        for y in y_values:
+            if y < average_y:
+                adjusted_y = y + offset  # Subtract the offset if the value is below the average
+            else:
+                adjusted_y = y -offset  # Add the offset if the value is above the average
+            adjusted_y_values.append(adjusted_y)
+
+
+        y1,y2,y3,y4 = adjusted_y_values[0], adjusted_y_values[1], adjusted_y_values[2],adjusted_y_values[3]
         
         p1, p2  = [x1,y1], [x2,y2]
         p3,p4 = [x3,y3], [x4,y4]
@@ -591,6 +609,10 @@ def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4):
 def calculate_distance(p1, p2):
     """ Calculate the Euclidean distance between two points. """
     return np.linalg.norm(np.array(p1) - np.array(p2))
+
+def calculate_distance_scaled(p1, p2, x_scale,y_scale):
+    """ Calculate the Euclidean distance between two points. """
+    return np.sqrt(((p1[0]-p2[0])**2)*x_scale + ((p1[1]-p2[1])**2) * y_scale)
     
     
 def get_corner_points(color_image,box,hull):
@@ -616,10 +638,10 @@ def get_corner_points(color_image,box,hull):
                     y = p[1]
                     
 
-                    distance_corner_1 = calculate_distance(box[0], p)
-                    distance_corner_2 = calculate_distance(box[1], p)
-                    distance_corner_3 = calculate_distance(box[2], p)
-                    distance_corner_4 = calculate_distance(box[3], p)
+                    distance_corner_1 = calculate_distance_scaled(box[0], p, x_scale = 1, y_scale = 5)
+                    distance_corner_2 = calculate_distance_scaled(box[1], p,x_scale = 1, y_scale = 5)
+                    distance_corner_3 = calculate_distance_scaled(box[2], p,x_scale = 1, y_scale = 5)
+                    distance_corner_4 = calculate_distance_scaled(box[3], p,x_scale = 1, y_scale = 5)
                     
                     if distance_corner_1 < reference_distance_corener_1:
                         x_corner_1 = x

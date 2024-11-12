@@ -8,12 +8,59 @@ import queue
 import time
 import threading
 import math
+from roi_functions import get_corner_points, get_shifted_points, draw_rotated_rectangle
 
 detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
-    wall_model = tf.keras.models.load_model('models\walls\inception_wall_rect_224x224_v0_L2_val_accuracy_0.993_combined_data.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_1111\inception_wall_rect_224x224_v0_L2_val_accuracy_0.9932_1111_combined.h5')
+
+    hole_model = tf.keras.models.load_model('models\hole_models_1111\inception_wall_rect_224x224_v0_L2_val_accuracy_0.9897_1111.h5')
+
+
+def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
+    
+    
+    rect = np.array(rect,dtype = np.float32)
+    width = np.linalg.norm(rect[0] - rect[1])
+    height = np.linalg.norm(rect[0] - rect[3])
+
+    dst_pts = np.array([
+        [0, 0],
+        [width, 0],
+        [width, height],
+        [0, height]
+    ], dtype="float32")
+
+    # Compute the perspective transform matrix
+    M = cv2.getPerspectiveTransform(rect, dst_pts)
+
+    # Perform the perspective transformation (i.e., crop the image)
+    cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
+    
+    ##Save IMAGE
+    
+    
+    cropped_image = cv2.resize(cropped_image,None,fx = img_shape/cropped_image.shape[1],fy = img_shape/cropped_image.shape[0])
+    
+    inspect_holes = True
+    if cropped_image.shape[0] !=img_shape or cropped_image.shape[1]  != img_shape:
+        inspect_holes = False
+    #model
+    if inspect_holes == True:
+        img_array = image.img_to_array(cropped_image)
+        
+        img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
+        img_array /= 255.0  # Normalize
+        prediction = hole_model.predict(img_array)
+        print('hole prediction',prediction[0])
+        text_offset_x = 150
+        text_offset_y = 80
+        if prediction[0] > hole_threshhold:
+            cv2.putText(img,f'Passed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 2)
+        else:
+            cv2.putText(img,f'Failed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 2)
 
 
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
@@ -171,7 +218,7 @@ def enlarge_contour(points, factor, max_move_ratio=2):
 def distance(p1, p2):
     return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
 
-def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, erosion_size_input=10, cut_rect = False, improved_bounding_box = False):
+def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.8, factor=0.2, cut_rect = False, improved_bounding_box = False):
     masked_color_image, cropped_image, hull, box = 0, 0, 0, 0
     box_detected = False
     min_depth_mm = min_depth * 1000
@@ -233,7 +280,7 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
                     #else:
                         #direction = np.array([(((max_1[1]-max_2[1])/bin_side_length)-0.01),-(max_1[0] - max_2[0])/bin_side_length])
                     # print('hoo')
-                    print('direction',direction)
+                   
                     bin_factor = 1.45 #1.45
                     #bin_factor = 1/1.45
                     calculated_point_1 = (direction * bin_factor * bin_side_length)  + max_1
@@ -263,13 +310,12 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             
             #end experiment
 
-            factor = 0.02  # 80% shrink (inward move)
+           
             extraction_shape = np.array(extraction_shape)
             shape = extraction_shape
             #extraction_shape = enlarge_contour(extraction_shape, factor)
 
-            # Step 1: Shrink the contour points
-            factor = 0.12# 80% shrink (inward move)
+            
             shrunk_contour = shrink_contour_stable(shape, min_move_ratio=0.05, factor=factor)
    
             # Step 2: Create a mask and draw the shrunk contour
@@ -392,21 +438,41 @@ try:
             resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
             cv2.imshow('Depth Image_', resized_depth_image)
             #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
-            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= False)
+            masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, factor = 0.15, cut_rect= True, improved_bounding_box= False)
 
-            edges = cv2.Canny(masked_color_image, 170, 220)
 
-            cv2.imshow('Canny', edges)
             #box_detected = False
             ####Add Hole Detection
             
-            
+            detection = True
             if box_detected == True and detection == True:
 
 
-    
-                detect_walls(color_image,masked_color_image,wall_model,1)
+                wall_detection = True
+                if wall_detection == True:
+                    detect_walls(color_image,masked_color_image,wall_model,1)
                 #color_image = masked_color_image
+
+                hole_detection = True
+                if hole_detection == True:
+                    corner_1, corner_2, corner_3, corner_4 = get_corner_points(color_image, box, hull)
+                    print('hi')
+                    edge_scale_factor = 0.2
+    
+                    p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4)
+
+                    ########## draw rectangle
+        
+                    rect_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1)
+                    rect_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
+                    rect_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
+                    rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
+                        
+                    
+                    image_count = detect_holes(rect_1,color_image,hole_model)
+                    #image_count = detect_holes(rect_2,color_image, hole_model,img_shape,hole_threshhold = ht)
+                    #image_count = detect_holes(rect_3,color_image,hole_model,img_shape,hole_threshhold = ht)
+                    #image_count = detect_holes(rect_4,color_image, hole_model,img_shape,hole_threshhold = ht)
 
 
             
