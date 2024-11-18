@@ -538,7 +538,13 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
     return masked_color_image, cropped_image, hull, box, box_detected
 
-def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4, offset = 20):
+def get_shifted_points(edge_scale_factor,corners, offset = 20):
+        
+        corner_1 = corners[0]
+        corner_2 = corners[1]
+        corner_3= corners[2]
+        corner_4 = corners[3]
+
         side_lengths = [
                         (distance(corner_1, corner_2), (corner_1, corner_2)),
                         (distance(corner_2, corner_3), (corner_2, corner_3)),
@@ -595,7 +601,7 @@ def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4, o
         d2 = calculate_distance(p3,p4)
         
         
-        edge_scale_factor = 0.20
+        #edge_scale_factor = 0.20
 
             
         p_new_1 = move_point_on_line(p1, p2, p1, d1 * edge_scale_factor)
@@ -606,11 +612,11 @@ def get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4, o
         return p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4
     
     
-def calculate_distance(p1, p2):
-    """ Calculate the Euclidean distance between two points. """
-    return np.linalg.norm(np.array(p1) - np.array(p2))
+#def calculate_distance(p1, p2):
+   # """ Calculate the Euclidean distance between two points. """
+   # return np.linalg.norm(np.array(p1) - np.array(p2))
 
-def calculate_distance_scaled(p1, p2, x_scale,y_scale):
+def calculate_distance(p1, p2, x_scale = 1,y_scale = 1):
     """ Calculate the Euclidean distance between two points. """
     return np.sqrt(((p1[0]-p2[0])**2)*x_scale + ((p1[1]-p2[1])**2) * y_scale)
     
@@ -631,6 +637,22 @@ def get_corner_points(color_image,box,hull):
                 x_corner_4 = 0
                 y_corner_4 = 0
                 reference_distance_corener_4 = 5000
+
+                x_corner_5 = 0
+                y_corner_5 = 0
+                reference_distance_corener_5 = 5000
+
+                x_corner_6 = 0
+                y_corner_6 = 0
+                reference_distance_corener_6 = 5000
+
+                x_corner_7 = 0
+                y_corner_7 = 0
+                reference_distance_corener_7 = 5000
+
+                x_corner_8 = 0
+                y_corner_8 = 0
+                reference_distance_corener_8 = 5000
                 
                 for j in range(len(hull)):
                     p = tuple(hull[j][0])
@@ -638,10 +660,18 @@ def get_corner_points(color_image,box,hull):
                     y = p[1]
                     
 
-                    distance_corner_1 = calculate_distance_scaled(box[0], p, x_scale = 1, y_scale = 5)
-                    distance_corner_2 = calculate_distance_scaled(box[1], p,x_scale = 1, y_scale = 5)
-                    distance_corner_3 = calculate_distance_scaled(box[2], p,x_scale = 1, y_scale = 5)
-                    distance_corner_4 = calculate_distance_scaled(box[3], p,x_scale = 1, y_scale = 5)
+                    distance_scale_factor = 15
+                    ##long corners
+                    distance_corner_1 = calculate_distance(box[0], p, x_scale = 1, y_scale = distance_scale_factor)
+                    distance_corner_2 = calculate_distance(box[1], p,x_scale = 1, y_scale = distance_scale_factor)
+                    distance_corner_3 = calculate_distance(box[2], p,x_scale = 1, y_scale = distance_scale_factor)
+                    distance_corner_4 = calculate_distance(box[3], p,x_scale = 1, y_scale = distance_scale_factor)
+
+                    #short corners
+                    distance_corner_5 = calculate_distance(box[0], p, x_scale = distance_scale_factor, y_scale = 1)
+                    distance_corner_6 = calculate_distance(box[1], p,x_scale = distance_scale_factor, y_scale = 1)
+                    distance_corner_7 = calculate_distance(box[2], p,x_scale = distance_scale_factor, y_scale = 1)
+                    distance_corner_8 = calculate_distance(box[3], p,x_scale = distance_scale_factor, y_scale = 1)
                     
                     if distance_corner_1 < reference_distance_corener_1:
                         x_corner_1 = x
@@ -664,12 +694,39 @@ def get_corner_points(color_image,box,hull):
                         y_corner_4 = y
                         reference_distance_corener_4 = distance_corner_4
 
+                    if distance_corner_5 < reference_distance_corener_5:
+                        x_corner_5 = x
+                        y_corner_5 = y
+                        reference_distance_corener_5 = distance_corner_5
+                    
+                    if distance_corner_6 < reference_distance_corener_6:
+                        x_corner_6 = x
+                        y_corner_6 = y
+                        reference_distance_corener_6 = distance_corner_6
+
+                    if distance_corner_7 < reference_distance_corener_7:
+                        x_corner_7 = x
+                        y_corner_7 = y
+                        reference_distance_corener_7 = distance_corner_7
+
+                    if distance_corner_8 < reference_distance_corener_8:
+                        x_corner_8 = x
+                        y_corner_8 = y
+                        reference_distance_corener_8 = distance_corner_8
+
 
                 #cv2.circle(color_image, box[1], 20, (255, 0, 255), -1) 
-                cv2.circle(color_image, [x_corner_1,y_corner_1], 20, (125, 0, 125), -1) 
-                cv2.circle(color_image, [x_corner_2,y_corner_2], 20, (125, 0, 125), -1) 
-                cv2.circle(color_image, [x_corner_3,y_corner_3], 20, (125, 0, 125), -1) 
-                cv2.circle(color_image, [x_corner_4,y_corner_4], 20, (125, 0, 125), -1) 
+                draw_points = False
+                if draw_points ==True:
+                    cv2.circle(color_image, [x_corner_1,y_corner_1], 10, (0, 255, 0), -1) 
+                    cv2.circle(color_image, [x_corner_2,y_corner_2], 10, (0, 255, 0), -1) 
+                    cv2.circle(color_image, [x_corner_3,y_corner_3], 10, (0, 255, 0), -1) 
+                    cv2.circle(color_image, [x_corner_4,y_corner_4], 10, (0, 255, 0), -1) 
+
+                    cv2.circle(color_image, [x_corner_5,y_corner_5], 10, (0, 255, 0), -1)
+                    cv2.circle(color_image, [x_corner_6,y_corner_6], 10, (0, 255, 0), -1)
+                    cv2.circle(color_image, [x_corner_7,y_corner_7], 10, (0, 255, 0), -1)
+                    cv2.circle(color_image, [x_corner_8,y_corner_8], 10, (0, 255, 0), -1)
                 
                 
         
@@ -678,8 +735,13 @@ def get_corner_points(color_image,box,hull):
                 corner_2 = [x_corner_2, y_corner_2]
                 corner_3 = [x_corner_3, y_corner_3]
                 corner_4 = [x_corner_4, y_corner_4]
-                
-                return corner_1, corner_2, corner_3, corner_4
+                corner_5 = [x_corner_5, y_corner_5]
+                corner_6 = [x_corner_6, y_corner_6]
+                corner_7 = [x_corner_7, y_corner_7]
+                corner_8 = [x_corner_8, y_corner_8]
+
+                corners = [corner_1, corner_2, corner_3, corner_4,corner_5, corner_6, corner_7, corner_8]
+                return corners
             
 
 

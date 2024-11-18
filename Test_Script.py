@@ -332,11 +332,10 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
             region_mask = cv2.bitwise_and(hull_mask, cv2.bitwise_not(shrunk_mask))
 
             # Step 10: Apply the region mask to the color image
-            print('hi')
-            print('region mask ', region_mask)
+            
             if region_mask.any():
                 masked_color_image = cv2.bitwise_and(color_image, color_image, mask=region_mask)
-                print('masked',masked_color_image)
+                
             else:
                 masked_color_image = None
             #cv2.imshow('masked_color_image', masked_color_image)
@@ -405,7 +404,7 @@ hole_filling_filter = rs.hole_filling_filter()
 #capture_thread = threading.Thread(target=capture_frames, args = (pipeline,frame_queue,align), daemon=True)
 
 #capture_thread.start()
-cutting_depth = 0.75
+cutting_depth = 0.8
 #get first last frame
 
 
@@ -437,22 +436,22 @@ try:
 
 
     
-            K =5
+            K =1
             kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
 
             # Apply dilation followed by erosion (this is called "closing")
-            depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_ERODE, kernel)
+            depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
             #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
      
             #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
-            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
             #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
            
 
             hsv_map = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2HSV)
 
             # Define HSV range for blue
-            lower_blue = np.array([70, 50, 50])    # Adjust these values if needed
+            lower_blue = np.array([40, 50, 50])    # Adjust these values if needed
             upper_blue = np.array([130, 255, 255]) # to precisely match your blue shade
 
             # Create a mask to isolate blue regions
@@ -465,15 +464,13 @@ try:
             
             #Improve Depth Image
 
-            scale_factor = 0.5
+            scale_factor = 0.4
             resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
-            cv2.imshow('Depth Image_', resized_depth_image)
+           
             #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
             masked_color_image,cropped_image, hull,box,box_detected = cut_region_between_hulls(depth_image,color_image,min_depth = 0,max_depth = cutting_depth, erosion_size_input= 10, cut_rect= True, improved_bounding_box= False)
 
-            edges = cv2.Canny(masked_color_image, 170, 220)
-
-            cv2.imshow('Canny', edges)
+           
             #box_detected = False
             ####Add Hole Detection
             
@@ -481,18 +478,217 @@ try:
             if box_detected == True and detection == True:
 
 
-                wall_detection = True
+                wall_detection = False
                 if wall_detection == True:
                     detect_walls(color_image,masked_color_image,wall_model,1)
                 #color_image = masked_color_image
 
                 hole_detection = True
                 if hole_detection == True:
-                    corner_1, corner_2, corner_3, corner_4 = get_corner_points(color_image, box, hull)
-                    print('hi')
+                    corners = get_corner_points(color_image, box, hull)
+
+                    ###Hull Tetst
+                    def get_lines_from_corners(corners, centroid):
+                        # Convert corners to a NumPy array if it's a list
+                        corners = np.array(corners)
+
+                        # If corners have an extra dimension (like (N, 1, 2)), flatten it to (N, 2)
+                        if corners.ndim == 3:
+                            corners = corners[:, 0, :]
+
+                        # Now corners is a (N, 2) array
+                        # Divide the points into quadrants
+                        top_left = corners[(corners[:, 0] < centroid[0]) & (corners[:, 1] > centroid[1])]
+                        top_right = corners[(corners[:, 0] > centroid[0]) & (corners[:, 1] > centroid[1])]
+                        bottom_left = corners[(corners[:, 0] < centroid[0]) & (corners[:, 1] < centroid[1])]
+                        bottom_right = corners[(corners[:, 0] > centroid[0]) & (corners[:, 1] < centroid[1])]
+
+                        # Line 1: Smallest y value in bottom-left and bottom-right quadrants
+                        bottom_left_min_y = bottom_left[np.argmin(bottom_left[:, 1])] if len(bottom_left) > 0 else None
+                        bottom_right_min_y = bottom_right[np.argmin(bottom_right[:, 1])] if len(bottom_right) > 0 else None
+
+                        # Line 2: Largest y value in top-left and top-right quadrants
+                        top_left_max_y = top_left[np.argmax(top_left[:, 1])] if len(top_left) > 0 else None
+                        top_right_max_y = top_right[np.argmax(top_right[:, 1])] if len(top_right) > 0 else None
+
+                          # Line 3: Smallest x value in bottom-left and top-left quadrants
+                        bottom_left_min_x = bottom_left[np.argmin(bottom_left[:, 0])] if len(bottom_left) > 0 else None
+                        top_left_min_x = top_left[np.argmin(top_left[:, 0])] if len(top_left) > 0 else None
+
+                        # Line 4: Largest x value in bottom-right and top-right quadrants
+                        bottom_right_max_x = bottom_right[np.argmax(bottom_right[:, 0])] if len(bottom_right) > 0 else None
+                        top_right_max_x = top_right[np.argmax(top_right[:, 0])] if len(top_right) > 0 else None
+
+                        lines = []
+
+                        if bottom_left_min_y is not None and bottom_right_min_y is not None:
+                            # Add line 1: from bottom-left to bottom-right
+                            lines.append((tuple(bottom_left_min_y), tuple(bottom_right_min_y)))
+
+                        if top_left_max_y is not None and top_right_max_y is not None:
+                            # Add line 2: from top-left to top-right
+                            lines.append((tuple(top_left_max_y), tuple(top_right_max_y)))
+
+                         # Line 3: from bottom-left to top-left (smallest x in left quadrants)
+                        if bottom_left_min_x is not None and top_left_min_x is not None:
+                            lines.append((tuple(bottom_left_min_x), tuple(top_left_min_x)))
+
+                        # Line 4: from bottom-right to top-right (largest x in right quadrants)
+                        if bottom_right_max_x is not None and top_right_max_x is not None:
+                            lines.append((tuple(bottom_right_max_x), tuple(top_right_max_x)))
+
+
+                        return lines
+                    
+                    def extend_line(p1, p2, img_width, img_height):
+                        """
+                        Extend the line passing through points p1 and p2 to the edges of the image.
+                        This function calculates the intersection of the line with the image boundaries.
+                        """
+
+                        # Extract the x and y coordinates of the two points
+                        x1, y1 = p1
+                        x2, y2 = p2
+
+                        # Handle vertical lines (x1 == x2)
+                        if x1 == x2:
+                            # Extend the vertical line from top to bottom of the image
+                            return [(x1, 0), (x1, img_height)]
+
+                        # Calculate the slope (m) and y-intercept (b) of the line
+                        m = (y2 - y1) / (x2 - x1)  # Slope
+                        b = y1 - m * x1  # y-intercept
+
+                        # Calculate the intersection points with the image boundaries
+
+                        # Left edge (x = 0)
+                        y_left = m * 0 + b
+                        if y_left < 0:  # Ensure the y-coordinate is within the image bounds
+                            y_left = 0
+                        elif y_left > img_height:
+                            y_left = img_height
+
+                        # Right edge (x = img_width)
+                        y_right = m * img_width + b
+                        if y_right < 0:  # Ensure the y-coordinate is within the image bounds
+                            y_right = 0
+                        elif y_right > img_height:
+                            y_right = img_height
+
+                        # Return the points of intersection with the image boundaries
+                        return [(0, y_left), (img_width, y_right)]
+                    
+                    def line_intersection(p1, p2, p3, p4):
+                        """
+                        Find the intersection point of two lines (p1, p2) and (p3, p4).
+                        Each line is defined by two points: (p1, p2) for the first line and (p3, p4) for the second.
+                        Returns the intersection point (x, y) if lines are not parallel, None otherwise.
+                        """
+                        x1, y1 = p1
+                        x2, y2 = p2
+                        x3, y3 = p3
+                        x4, y4 = p4
+
+                        # Calculate the slopes and intercepts
+                        den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+                        if den == 0:  # Lines are parallel
+                            return None
+
+                        # Calculate the intersection point
+                        x = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den
+                        y = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den
+
+                        return (x, y)
+                    
+                    
+
+                    def scale_hull(hull,scale_factor, adjustent_factor = 1.01):
+                        expanded_hull = []
+
+                        centroid = np.mean(hull[:, 0, :], axis=0)
+
+                        points_below_centroid = hull[hull[:, 0, 1] < centroid[1]]
+
+                        points_below_centroid_flat = points_below_centroid[:, 0, :]
+                        # Get the x values
+                        x_values = points_below_centroid_flat[:, 0]
+
+                        # Get the smallest x value
+                        min_x_value = np.min(x_values)
+
+                        # Get the largest x value
+                        max_x_value = np.max(x_values)
+
+                        for point in hull[:, 0, :]:
+                            vector = point - centroid  # Vector from centroid to the point
+                            if point[1] <= centroid[1] and point[0] >min_x_value and point[0]< max_x_value:
+
+                                expanded_point = centroid + scale_factor * vector  * adjustent_factor
+                                #expanded_point = centroid + scale_factor * vector
+                            else:
+                                expanded_point = centroid + scale_factor * vector  # Scale outward
+                            expanded_hull.append(expanded_point)
+                        
+
+                        expanded_hull = np.array(expanded_hull, dtype=np.int32)
+
+                        return expanded_hull
+
+                    hull = cv2.convexHull(np.array(corners))
+
+                    # Find the centroid of the hull
+                    centroid = np.mean(hull[:, 0, :], axis=0)
+                    lines = get_lines_from_corners(corners, centroid)
+                    for line in lines:
+                         cv2.line(color_image, line[0], line[1], (0, 255, 0), 2)
+
+
+                    img_width = color_image.shape[1]
+                    img_height = color_image.shape[0]
+                    # Extend the lines to fit the image boundaries
+                    for i, line1 in enumerate(lines):
+                        extended_line1 = extend_line(line1[0], line1[1], img_width, img_height)
+                        print(extended_line1[0][0])
+                        # Draw the extended lines
+                        cv2.line(color_image, [int(extended_line1[0][0]),int(extended_line1[0][1])],[int(extended_line1[1][0]),int(extended_line1[1][1])], (0, 255, 0), 2)
+
+                    # Scale factor (adjust this to control how far the hull moves outward)
+                    
+                    scale_factor = 1.015
+                    adjustment_factor = 1.01
+                    # Expand the hull outward
+                    expanded_hull = scale_hull(hull, scale_factor, adjustment_factor)
+                    scale_factor = 0.86
+                    adjustment_factor = 1.01
+                    shrunk_hull = scale_hull(hull, scale_factor,adjustment_factor)
+
+                    # Draw the convex hull on the image
+                    #cv2.polylines(color_image, [expanded_hull], isClosed=True, color=(0, 0, 255), thickness=2)
+                    #cv2.polylines(color_image, [shrunk_hull], isClosed=True, color=(0, 0, 255), thickness=2)
+
+                    ##cut between hulls
+                    # Create masks
+                    mask_outer = np.zeros(color_image.shape[:2], dtype=np.uint8)
+                    mask_inner = np.zeros(color_image.shape[:2], dtype=np.uint8)
+
+                    # Fill the masks with the hulls
+                    cv2.fillPoly(mask_outer, [expanded_hull], 255)  # Outer hull (expanded)
+                    cv2.fillPoly(mask_inner, [shrunk_hull], 255)   # Inner hull (shrunk)
+
+                    # Subtract the inner mask from the outer mask
+                    mask_between = cv2.subtract(mask_outer, mask_inner)
+
+                    # Apply the mask to the image
+                    result = cv2.bitwise_and(color_image, color_image, mask=mask_between)
+                    result_scale = 0.4
+                    scaled_result = cv2.resize(result,None, fx = result_scale, fy = result_scale)
+                    cv2.imshow('result', scaled_result)
+                    #Hull Test End
+
                     edge_scale_factor = 0.2
-    
-                    p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corner_1,corner_2,corner_3, corner_4)
+                    edge_scale_factor = 0.18
+               
+                    p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corners)
 
                     ########## draw rectangle
         
@@ -502,7 +698,7 @@ try:
                     rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
                         
                     
-                    image_count = detect_holes(rect_1,color_image,hole_model)
+                    #image_count = detect_holes(rect_1,color_image,hole_model)
                     #image_count = detect_holes(rect_2,color_image, hole_model,img_shape,hole_threshhold = ht)
                     #image_count = detect_holes(rect_3,color_image,hole_model,img_shape,hole_threshhold = ht)
                     #image_count = detect_holes(rect_4,color_image, hole_model,img_shape,hole_threshhold = ht)
@@ -520,7 +716,9 @@ try:
                 resized_masked_image = cv2.resize(masked_color_image,None,fx =  scale_factor,fy = scale_factor)
                 # Create the top horizontal stack
                 top_row = np.hstack((resized_masked_image, resized_color_image))
-                cv2.imshow('Color Images', top_row)
+                bottom_row = np.hstack((resized_depth_image, scaled_result))
+                final_display = np.vstack((top_row, bottom_row))
+                cv2.imshow('Color Images', final_display)
             else:
                 cv2.imshow('Color Images', resized_color_image)
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
