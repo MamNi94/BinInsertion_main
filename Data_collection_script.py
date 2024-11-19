@@ -14,13 +14,13 @@ import re
 
 # Define base directory
 
-dataset = 'dataset/data_1811/'
+dataset = 'dataset/data_1911_decreased_range_2/'
 wall_dir= f"{dataset}walls"
 hole_dir = f"{dataset}holes"
 color_image_dir = f"{dataset}color_image"
 
-image_class_bin = 'negative'
-image_class_hole = 'positive'
+image_class_bin = 'positive'
+image_class_hole = 'negative'
 
 # Create 'positive' and 'negative' directories if they don't exist
 
@@ -419,7 +419,7 @@ try:
                  box_detected_counter +=1
             if box_detected == False:
                  box_detected_counter =0
-            if box_detected == True and  box_detected_counter > 10:
+            if box_detected == True and  box_detected_counter > 5:
                 box_detected_counter = 0
                 image_name = f'{image_class_bin}_{i}.jpg'
                 save_image(color_image,image_class_bin, image_name, color_image_dir)
@@ -462,7 +462,7 @@ try:
 
                 p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corners)
                 
-                save_holes = True
+                save_holes = False
                 if save_holes == True:
                         
 
@@ -483,7 +483,9 @@ try:
                 
                 save_walls = True
                 if save_walls == True:
-                              
+                    scale_factor = 0.4
+                    cut_region_final_small = cv2.resize(cut_region_final,None, fx = scale_factor, fy= scale_factor)
+                    cv2.imshow('cut out',cut_region_final_small)     
                     save_image(cut_region_final,image_class_bin, image_name, wall_dir)
                     i = i+1
             box_detected_old = box_detected

@@ -8,13 +8,13 @@ import time
 import math
 from roi_functions import get_corner_points, get_shifted_points, draw_rotated_rectangle
 
-detection = False
+detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
-    wall_model = tf.keras.models.load_model('models\wall_models_1111\inception_wall_rect_224x224_v0_L2_val_accuracy_0.9932_1111_combined.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_1811\inception_wall_224x224_v0_L2_val_accuracy_0.9983193278312683_1811.h5')
 
-    hole_model = tf.keras.models.load_model('models\hole_models_1111\inception_wall_rect_224x224_v0_L2_val_accuracy_0.9897_1111.h5')
+    hole_model = tf.keras.models.load_model('models\hole_models_1811\inception_hole_rect_224x224_v0_L2_val_accuracy_0.9691217541694641_1811_combined.h5')
 
 
 def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
@@ -37,8 +37,6 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
     # Perform the perspective transformation (i.e., crop the image)
     cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
     
-    ##Save IMAGE
-    
     
     cropped_image = cv2.resize(cropped_image,None,fx = img_shape/cropped_image.shape[1],fy = img_shape/cropped_image.shape[0])
     
@@ -59,6 +57,8 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
             cv2.putText(img,f'Passed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 2)
         else:
             cv2.putText(img,f'Failed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 2)
+
+        return cropped_image
 
 
 
@@ -359,8 +359,8 @@ try:
             ####Add Hole Detection
           
             detection = True
-            hole_detection = False
-            wall_detection = False
+            hole_detection = True
+            wall_detection = True
             
             if box_detected == True:
                 
@@ -418,10 +418,10 @@ try:
                         
                     if hole_detection == True:
                         
-                        image_count = detect_holes(rect_1,color_image,hole_model)
-                        #image_count = detect_holes(rect_2,color_image, hole_model,img_shape,hole_threshhold = ht)
-                        #image_count = detect_holes(rect_3,color_image,hole_model,img_shape,hole_threshhold = ht)
-                        #image_count = detect_holes(rect_4,color_image, hole_model,img_shape,hole_threshhold = ht)
+                        cropp_1 = detect_holes(rect_1,color_image,hole_model)
+                        cropp_2 = detect_holes(rect_2,color_image,hole_model)
+                        cropp_3 = detect_holes(rect_3,color_image,hole_model)
+                        cropp_4 = detect_holes(rect_4,color_image,hole_model)
                     if wall_detection == True:
                         
                         height, width, _ = cut_region_final.shape 
@@ -448,10 +448,12 @@ try:
                 scaled_result = cv2.resize(cut_region_final,None, fx = scale_factor, fy = scale_factor)
                 # Create the top horizontal stack
                 top_row = np.hstack(( resized_depth_image,resized_color_image))
+
+                cropp_row = np.hstack((cropp_1,cropp_2,cropp_3,cropp_4))
                
                 #final_display = np.vstack((top_row, bottom_row))
                 cv2.imshow('Color Images', top_row)
-                cv2.imshow('Color Images__', scaled_result)
+                cv2.imshow('Color Images__', cropp_row)
             else:
                 cv2.imshow('Color Images', resized_color_image)
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
