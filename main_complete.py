@@ -12,9 +12,9 @@ detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
-    wall_model = tf.keras.models.load_model('models\wall_models_1811\inception_wall_224x224_v0_L2_val_accuracy_0.9983193278312683_1811.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
 
-    hole_model = tf.keras.models.load_model('models\hole_models_1811\inception_hole_rect_224x224_v0_L2_val_accuracy_0.9691217541694641_1811_combined.h5')
+    hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
 
 
 def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
@@ -65,8 +65,8 @@ def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
     t = time.time()
     height, width, _ = masked_color_image.shape
-    factor_x = 224/width
-    factor_y = 224/height
+    factor_x = 299/width
+    factor_y = 299/height
     input_wallcheck = cv2.resize(masked_color_image,None, fx = factor_x, fy =factor_y)
     #cv2.imshow('CNN input Wallcheck', input_wallcheck)
     img_array = image.img_to_array(input_wallcheck)
@@ -89,7 +89,7 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     
     print(f'prediction {prediction[0]}')
    
-    if prediction[0] > 0.5:
+    if prediction[0] > 0.99:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
     else:
@@ -357,6 +357,7 @@ try:
            
             #box_detected = False
             ####Add Hole Detection
+            cropped_cut_region_final = None
           
             detection = True
             hole_detection = True
@@ -444,18 +445,22 @@ try:
             resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)
            
 
-            if cut_region_final is not None and   isinstance(cut_region_final, np.ndarray):
-                scaled_result = cv2.resize(cut_region_final,None, fx = scale_factor, fy = scale_factor)
+            if cropped_cut_region_final is not None and   isinstance(cropped_cut_region_final, np.ndarray):
+                scaled_result = cv2.resize(cropped_cut_region_final,None, fx = scale_factor, fy = scale_factor)
                 # Create the top horizontal stack
                 top_row = np.hstack(( resized_depth_image,resized_color_image))
 
                 cropp_row = np.hstack((cropp_1,cropp_2,cropp_3,cropp_4))
+                #resized_color_image = scaled_result
                
                 #final_display = np.vstack((top_row, bottom_row))
-                cv2.imshow('Color Images', top_row)
-                cv2.imshow('Color Images__', cropp_row)
+                #cv2.imshow('Color Images', top_row)
+                #cv2.imshow('Color Images__', cropp_row)
+                #cv2.imshow('Color image',scaled_result)
             else:
-                cv2.imshow('Color Images', resized_color_image)
+               # cv2.imshow('Color Image', resized_color_image)
+                print('hi')
+            cv2.imshow('Color Image', resized_color_image) 
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
   
 
