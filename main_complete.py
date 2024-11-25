@@ -220,6 +220,7 @@ def scale_hull(hull,scale_factor = 1, adjustent_factor = 1.01):
 
 def detect_box(depth_image, color_image, min_depth=0, max_depth=0.8):
     hull, box = 0, 0
+    box_detected = False
     
     min_depth_mm = min_depth * 1000
     max_depth_mm = max_depth * 1000
@@ -282,6 +283,27 @@ def detect_box(depth_image, color_image, min_depth=0, max_depth=0.8):
     
     return hull, box, box_detected
 
+def get_rect_center(rect):
+    """
+    Calculate the center of a rectangle given its 4 points.
+    
+    Parameters:
+        rect (list): A list of 4 points defining the rectangle (in any consistent order).
+        
+    Returns:
+        tuple: (cx, cy) the coordinates of the rectangle's center.
+    """
+    # Ensure the points are numpy arrays for easy manipulation
+    rect = np.array(rect, dtype=np.float32)
+    
+    # Calculate the center as the average of the top-left and bottom-right corners
+    top_left = rect[0]
+    bottom_right = rect[2]
+    cx = (top_left[0] + bottom_right[0]) / 2
+    cy = (top_left[1] + bottom_right[1]) / 2
+    
+    return cx, cy
+
 
 #Initialize
 pipeline = rs.pipeline()
@@ -314,7 +336,7 @@ hole_filling_filter = rs.hole_filling_filter()
 cutting_depth = 0.8
 #get first last frame
 
-
+previous_center = [0,0]
 
 try:
     while True:
@@ -377,7 +399,11 @@ try:
             #masked_color_image, hull,box,box_detected = cut_region_v2(depth_image,color_image,min_depth = 0,max_depth = 0.8)
             hull,box,box_detected = detect_box(depth_image,color_image,min_depth = 0,max_depth = cutting_depth)
 
-           
+            if box_detected == True:
+                current_center =  get_rect_center(box)
+                center_dist = distance(current_center,previous_center)
+                previous_center = current_center
+                print('center_dist:', center_dist)
             #box_detected = False
             ####Add Hole Detection
             cropped_cut_region_final = None
@@ -386,7 +412,7 @@ try:
             hole_detection = True
             wall_detection = True
             
-            if box_detected == True:
+            if box_detected == True and center_dist <4:
                 
                
                 if detection == True:
@@ -441,11 +467,7 @@ try:
                     rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
                         
                     if hole_detection == True:
-                        
-                        #cropp_1 = detect_holes(rect_1,color_image,hole_model)
-                        #cropp_2 = detect_holes(rect_2,color_image,hole_model)
-                        #cropp_3 = detect_holes(rect_3,color_image,hole_model)
-                        #cropp_4 = detect_holes(rect_4,color_image,hole_model)
+          
                         detect_holes_batch([rect_1,rect_2,rect_3,rect_4],color_image,hole_model)
                     if wall_detection == True:
                         
