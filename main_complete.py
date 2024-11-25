@@ -17,48 +17,71 @@ if detection == True:
     hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
 
 
-def detect_holes(rect,img, hole_model, img_shape = 224,hole_threshhold = 0.5):
-    
-    
-    rect = np.array(rect,dtype = np.float32)
-    width = np.linalg.norm(rect[0] - rect[1])
-    height = np.linalg.norm(rect[0] - rect[3])
 
-    dst_pts = np.array([
-        [0, 0],
-        [width, 0],
-        [width, height],
-        [0, height]
-    ], dtype="float32")
 
-    # Compute the perspective transform matrix
-    M = cv2.getPerspectiveTransform(rect, dst_pts)
+def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5):
+    """
+    Detect holes in multiple rectangles with a single model inference.
+    
+    Parameters:
+        rects (list): A list of rectangular regions (4 points per rectangle).
+        img (ndarray): The input image.
+        hole_model (keras.Model): The trained model for hole detection.
+        img_shape (int): Target shape (width/height) for model input.
+        hole_threshold (float): Threshold for determining pass/fail.
+    
+    Returns:
+        ndarray: The modified image with annotations.
+    """
+    # List to store cropped images
+    cropped_images = []
+    valid_rects = []
 
-    # Perform the perspective transformation (i.e., crop the image)
-    cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
-    
-    
-    cropped_image = cv2.resize(cropped_image,None,fx = img_shape/cropped_image.shape[1],fy = img_shape/cropped_image.shape[0])
-    
-    inspect_holes = True
-    if cropped_image.shape[0] !=img_shape or cropped_image.shape[1]  != img_shape:
-        inspect_holes = False
-    #model
-    if inspect_holes == True:
-        img_array = image.img_to_array(cropped_image)
+    for rect in rects:
+        rect = np.array(rect, dtype=np.float32)
+        width = np.linalg.norm(rect[0] - rect[1])
+        height = np.linalg.norm(rect[0] - rect[3])
+
+        dst_pts = np.array([
+            [0, 0],
+            [width, 0],
+            [width, height],
+            [0, height]
+        ], dtype="float32")
+
+        # Compute the perspective transform matrix
+        M = cv2.getPerspectiveTransform(rect, dst_pts)
+
+        # Perform the perspective transformation (i.e., crop the image)
+        cropped_image = cv2.warpPerspective(img, M, (int(width), int(height)))
         
-        img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
-        img_array /= 255.0  # Normalize
-        prediction = hole_model.predict(img_array)
-        print('hole prediction',prediction[0])
-        text_offset_x = 150
-        text_offset_y = 80
-        if prediction[0] > hole_threshhold:
-            cv2.putText(img,f'Passed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 2)
-        else:
-            cv2.putText(img,f'Failed', (int(rect[0][0]-text_offset_x),int(rect[0][1] + text_offset_y)), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 2)
+        # Resize cropped image to the desired shape
+        resized_image = cv2.resize(cropped_image, (img_shape, img_shape))
+        
+        # Check dimensions
+        if resized_image.shape[0] == img_shape and resized_image.shape[1] == img_shape:
+            cropped_images.append(resized_image)
+            valid_rects.append(rect)  # Only keep valid rects
 
-        return cropped_image
+    # Convert cropped images to a batch for model inference
+    if cropped_images:
+        cropped_images_array = np.array([image.img_to_array(img) / 255.0 for img in cropped_images])
+        predictions = hole_model.predict(cropped_images_array)
+
+        for rect, prediction in zip(valid_rects, predictions):
+            text_offset_x = 150
+            text_offset_y = 80
+            if prediction[0] > hole_threshold:
+                cv2.putText(img, 'Passed', (int(rect[0][0] - text_offset_x), int(rect[0][1] + text_offset_y)), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 200, 0), 2)
+            else:
+                cv2.putText(img, 'Failed', (int(rect[0][0] - text_offset_x), int(rect[0][1] + text_offset_y)), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 200), 2)
+    else:
+        print("No valid cropped images found for inference.")
+
+    return img
+
 
 
 
@@ -419,10 +442,11 @@ try:
                         
                     if hole_detection == True:
                         
-                        cropp_1 = detect_holes(rect_1,color_image,hole_model)
-                        cropp_2 = detect_holes(rect_2,color_image,hole_model)
-                        cropp_3 = detect_holes(rect_3,color_image,hole_model)
-                        cropp_4 = detect_holes(rect_4,color_image,hole_model)
+                        #cropp_1 = detect_holes(rect_1,color_image,hole_model)
+                        #cropp_2 = detect_holes(rect_2,color_image,hole_model)
+                        #cropp_3 = detect_holes(rect_3,color_image,hole_model)
+                        #cropp_4 = detect_holes(rect_4,color_image,hole_model)
+                        detect_holes_batch([rect_1,rect_2,rect_3,rect_4],color_image,hole_model)
                     if wall_detection == True:
                         
                         height, width, _ = cut_region_final.shape 
@@ -441,25 +465,25 @@ try:
 
 
         
-            scale_factor = 0.4
+            scale_factor = 0.8
             resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)
            
 
             if cropped_cut_region_final is not None and   isinstance(cropped_cut_region_final, np.ndarray):
+                scale_factor = 0.4
                 scaled_result = cv2.resize(cropped_cut_region_final,None, fx = scale_factor, fy = scale_factor)
                 # Create the top horizontal stack
-                top_row = np.hstack(( resized_depth_image,resized_color_image))
+                top_row = np.hstack(( resized_depth_image,scaled_result))
 
-                cropp_row = np.hstack((cropp_1,cropp_2,cropp_3,cropp_4))
+                #cropp_row = np.hstack((cropp_1,cropp_2,cropp_3,cropp_4))
                 #resized_color_image = scaled_result
                
                 #final_display = np.vstack((top_row, bottom_row))
-                #cv2.imshow('Color Images', top_row)
+                cv2.imshow('Depth_crop', top_row)
                 #cv2.imshow('Color Images__', cropp_row)
                 #cv2.imshow('Color image',scaled_result)
-            else:
-               # cv2.imshow('Color Image', resized_color_image)
-                print('hi')
+
+                
             cv2.imshow('Color Image', resized_color_image) 
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
   
