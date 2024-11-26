@@ -12,14 +12,16 @@ detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
+    #wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
     wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
 
     hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
+    
 
 
 
 
-def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5):
+def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.1):
     """
     Detect holes in multiple rectangles with a single model inference.
     
@@ -36,6 +38,7 @@ def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5
     # List to store cropped images
     cropped_images = []
     valid_rects = []
+    hole_check = []
 
     for rect in rects:
         rect = np.array(rect, dtype=np.float32)
@@ -64,6 +67,7 @@ def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5
             valid_rects.append(rect)  # Only keep valid rects
 
     # Convert cropped images to a batch for model inference
+    h = 0
     if cropped_images:
         cropped_images_array = np.array([image.img_to_array(img) / 255.0 for img in cropped_images])
         predictions = hole_model.predict(cropped_images_array)
@@ -73,20 +77,25 @@ def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5
             text_offset_y = 80
             if prediction[0] > hole_threshold:
                 cv2.putText(img, 'Passed', (int(rect[0][0] - text_offset_x), int(rect[0][1] + text_offset_y)), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 200, 0), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 200, 0), 2)
+                hole_check.append(1)
             else:
                 cv2.putText(img, 'Failed', (int(rect[0][0] - text_offset_x), int(rect[0][1] + text_offset_y)), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 200), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 200), 2)
+                hole_check.append(0)
+            h+=1
     else:
         print("No valid cropped images found for inference.")
 
-    return img
+    return hole_check
 
 
 
 
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
-    t = time.time()
+    
+    wall_check = None
+
     height, width, _ = masked_color_image.shape
     factor_x = 299/width
     factor_y = 299/height
@@ -97,27 +106,27 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     img_array = np.expand_dims(img_array, axis=0)  # Create batch axis
     img_array /= 255.0  # Normalize
 
-    print('t1',time.time()-t)
     ###for batch prediction
-    imgs = np.vstack([img_array,img_array])
     with tf.device('/GPU:0'): 
-     
-     prediction = wall_model.predict(img_array)
-    print('t2',time.time()-t)
+      prediction = wall_model.predict(img_array)
+
 
     print(prediction)
     height, width = color_image.shape[:2]
     h = np.int0(height/2)
     w = np.int0(width/2)  
     
-    print(f'prediction {prediction[0]}')
    
-    if prediction[0] > 0.99:
+    if prediction[0] > 0.999:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
+        wall_check = 1
     else:
         cv2.putText(color_image,f'Wall Check: Failed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 200), 3)
+        wall_check = 0
+
+    return wall_check
 
 def calculate_angle(p1, p2, p3):
     # Vector between p1->p2 and p2->p3
@@ -305,6 +314,87 @@ def get_rect_center(rect):
     return cx, cy
 
 
+ # Function to draw the progress bar on the image
+def draw_progress_bar(image, percentage,bin_check_final):
+
+    #progress bar
+    # Progress bar parameters
+    bar_width = 400
+    bar_height = 30
+    bar_x = 800  # X position of the bar
+    bar_y = 350  # Y position of the bar
+    bar_color = (0, 255, 0)
+    if bin_check_final == False:
+        bar_color = (0, 0, 255)
+
+    background_color = (50, 50, 50)
+    text_color = (255, 255, 255)
+  
+    # Make a copy of the image to avoid overwriting
+    display_image = image
+    
+    # Draw the background of the progress bar
+    cv2.rectangle(display_image, (bar_x, bar_y), 
+                (bar_x + bar_width, bar_y + bar_height), background_color, -1)
+    
+    # Calculate the width of the progress portion
+    progress_width = int((percentage / 10) * bar_width)
+    
+    # Draw the progress
+    cv2.rectangle(display_image, (bar_x, bar_y), 
+    (bar_x + progress_width, bar_y + bar_height), bar_color, -1)
+
+    # Add text to show the percentage
+    text = f"{percentage*10:.1f}%"
+    font_scale = 0.8
+    thickness = 2
+    text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+    text_x = bar_x + (bar_width - text_size[0]) // 2
+    text_y = bar_y + bar_height // 2 + text_size[1] // 2
+    cv2.putText(display_image, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, text_color, thickness)
+
+def is_hull_bounded_by_rect(image, cut_region_final, rect_width=200, rect_height=150):
+    """
+    Check if the convex hull is fully within a rectangle around the midpoint of the image.
+
+    Parameters:
+    - image (numpy.ndarray): The input image.
+    - cut_region_final (numpy.ndarray): The points of the convex hull (array of shape (N, 1, 2)).
+    - rect_width (int): The width of the rectangle around the midpoint (default 200).
+    - rect_height (int): The height of the rectangle around the midpoint (default 150).
+
+    Returns:
+    - bool: True if the convex hull is fully within the rectangle, False otherwise.
+    """
+    # Get image dimensions
+    image_height, image_width = image.shape[:2]
+
+    # Calculate the midpoint of the image
+    mid_x, mid_y = image_width // 2, image_height // 2
+
+    # Define the rectangle around the midpoint
+    rect_top_left = (mid_x - rect_width // 2, mid_y - rect_height // 2)
+    rect_bottom_right = (mid_x + rect_width // 2, mid_y + rect_height // 2)
+
+    # Get the bounding rectangle of the convex hull
+    
+    x, y, w, h = cv2.boundingRect(np.array(cut_region_final))
+    hull_rect_top_left = (x, y)
+    hull_rect_bottom_right = (x + w, y + h)
+
+    # Check if the hull is bounded by the rectangle
+    is_bounded = (
+        hull_rect_top_left[0] >= rect_top_left[0]
+        and hull_rect_top_left[1] >= rect_top_left[1]
+        and hull_rect_bottom_right[0] <= rect_bottom_right[0]
+        and hull_rect_bottom_right[1] <= rect_bottom_right[1]
+    )
+
+    cv2.rectangle(image, rect_top_left, rect_bottom_right, (255, 0, 0), 2)  # Midpoint rectangle
+    cv2.polylines(image, [cut_region_final], isClosed=True, color=(0, 255, 0), thickness=2)  # Convex hull
+    
+
+
 #Initialize
 pipeline = rs.pipeline()
 config = rs.config()
@@ -337,6 +427,8 @@ cutting_depth = 0.8
 #get first last frame
 
 previous_center = [0,0]
+
+classification_matrix = []
 
 try:
     while True:
@@ -404,6 +496,9 @@ try:
                 center_dist = distance(current_center,previous_center)
                 previous_center = current_center
                 print('center_dist:', center_dist)
+            
+            else:
+                classification_matrix = []
             #box_detected = False
             ####Add Hole Detection
             cropped_cut_region_final = None
@@ -411,8 +506,10 @@ try:
             detection = True
             hole_detection = True
             wall_detection = True
+
             
-            if box_detected == True and center_dist <4:
+            
+            if box_detected == True and center_dist <20:
                 
                
                 if detection == True:
@@ -426,7 +523,7 @@ try:
 
                     
                     scale_factor = 1.015
-                    adjustment_factor = 1.01
+                    adjustment_factor = 1.02
                     # Expand the hull outward
                     expanded_hull = scale_hull(hull, scale_factor, adjustment_factor)
                     scale_factor = 0.86
@@ -452,6 +549,9 @@ try:
                     # Apply the mask to the image
                     cut_region_final = cv2.bitwise_and(color_image, color_image, mask=mask_between)
                     
+                    #is_hull_bounded_by_rect(color_image, expanded_hull, rect_width=1300, rect_height=880)
+
+                    
                     
                     #Cut Bin end
 
@@ -465,10 +565,16 @@ try:
                     rect_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
                     rect_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
                     rect_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
+
+                    classification_list = []
                         
                     if hole_detection == True:
           
-                        detect_holes_batch([rect_1,rect_2,rect_3,rect_4],color_image,hole_model)
+                        hole_result = detect_holes_batch([rect_1,rect_2,rect_3,rect_4],color_image,hole_model)
+                        if hole_result is not None:
+                            classification_list = hole_result
+                        
+                       
                     if wall_detection == True:
                         
                         height, width, _ = cut_region_final.shape 
@@ -483,9 +589,45 @@ try:
                         
 
 
-                        detect_walls(color_image,cropped_cut_region_final,wall_model,1)
+                        wall_result = detect_walls(color_image,cropped_cut_region_final,wall_model,1)
+                        if wall_result is not None:
+                            classification_list.append(wall_result)
 
+                    
 
+                    classification_matrix.append(classification_list)
+                    bin_check_final = None
+                    if len(classification_matrix) > 10:
+                        
+                        column_sums = [sum(column) for column in zip(*classification_matrix)]
+                        for index, col_sum in enumerate(column_sums):
+                            if col_sum >= 5:
+                                bin_check_final = True
+                                
+                            else:
+                                
+                                cv2.putText(color_image,f'This Bin Is Faulty!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
+                                bin_check_final = False
+                                break
+                        
+                        if bin_check_final == True:
+                             cv2.putText(color_image,f'This Bin Is Amazing!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 3)
+
+                        classification_matrix.pop(0)
+
+                    
+                    draw_progress_bar(color_image, len(classification_matrix),bin_check_final)
+
+            ##add legend
+            cv2.putText(color_image,f'good wall:', (100,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 3)
+            cv2.putText(color_image,f'good hole:', (100,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 3)
+            
+            cv2.circle(color_image, (300,90), 1, (0, 255, 0), 30)
+            cv2.circle(color_image, (300,140), 1, (255, 125, 0), 15)
+            cv2.circle(color_image, (340,140), 1, (0, 165, 255), 15)
+            #end legend
+
+              
         
             scale_factor = 0.8
             resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)
@@ -507,6 +649,7 @@ try:
 
                 
             cv2.imshow('Color Image', resized_color_image) 
+          
             #resized_depth_image = cv2.resize(depth_colormap,None,fx =  scale_factor,fy = scale_factor)
   
 

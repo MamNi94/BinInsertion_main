@@ -775,6 +775,6 @@ def draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1):
                 rotated_rect_points[:,0] =  rotated_rect_points[:,0]  #+ x
                 rotated_rect_points[:,1] =  rotated_rect_points[:,1]  #+ y
                 
-                cv2.polylines(color_image, [rotated_rect_points], isClosed=True, color=(125, 125, 0), thickness=10)
+                cv2.polylines(color_image, [rotated_rect_points], isClosed=True, color=(0, 255,255), thickness=5)
                 
                 return rect_points

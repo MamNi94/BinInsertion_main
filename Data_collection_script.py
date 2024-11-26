@@ -14,18 +14,23 @@ import re
 
 # Define base directory
 
-dataset = 'dataset/data_1911_decreased_range_2/'
+dataset = 'dataset/data_2511_/'
 wall_dir= f"{dataset}walls"
 hole_dir = f"{dataset}holes"
 color_image_dir = f"{dataset}color_image"
 
-image_class_bin = 'positive'
+wall_dir_2 = f"{dataset}walls_scalefactor_0.2"
+
+image_class_bin = 'negative'
 image_class_hole = 'negative'
 
 # Create 'positive' and 'negative' directories if they don't exist
 
 os.makedirs(os.path.join(wall_dir, "positive"), exist_ok=True)
 os.makedirs(os.path.join(wall_dir, "negative"), exist_ok=True)
+
+os.makedirs(os.path.join(wall_dir_2, "positive"), exist_ok=True)
+os.makedirs(os.path.join(wall_dir_2, "negative"), exist_ok=True)
 
 os.makedirs(os.path.join(hole_dir, "positive"), exist_ok=True)
 os.makedirs(os.path.join(hole_dir, "negative"), exist_ok=True)
@@ -243,6 +248,8 @@ def scale_hull(hull,scale_factor = 1, adjustent_factor = 1.01):
 
 def detect_box(depth_image, color_image, min_depth=0, max_depth=0.8):
     hull, box = 0, 0
+
+    box_detected = False
     
     min_depth_mm = min_depth * 1000
     max_depth_mm = max_depth * 1000
