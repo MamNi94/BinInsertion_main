@@ -12,8 +12,8 @@ detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
-    #wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
-    wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
+    #wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
 
     hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
     
@@ -21,7 +21,7 @@ if detection == True:
 
 
 
-def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.1):
+def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5):
     """
     Detect holes in multiple rectangles with a single model inference.
     
@@ -392,7 +392,9 @@ def is_hull_bounded_by_rect(image, cut_region_final, rect_width=200, rect_height
 
     cv2.rectangle(image, rect_top_left, rect_bottom_right, (255, 0, 0), 2)  # Midpoint rectangle
     cv2.polylines(image, [cut_region_final], isClosed=True, color=(0, 255, 0), thickness=2)  # Convex hull
-    
+
+
+
 
 
 #Initialize
@@ -453,36 +455,23 @@ try:
             depth_image = np.asanyarray(filtered_depth_frame.get_data())
             
            
-            depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
+           
 
 
     
             K =11
             kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
 
-            # Apply dilation followed by erosion (this is called "closing")
-            depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
-            #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
-     
-            #depth_colormap = cv2.morphologyEx(depth_colormap, cv2.MORPH_CLOSE, kernel)
             depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
-            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
+
+
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
+           
            
 
-            hsv_map = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2HSV)
-
-            # Define HSV range for blue
-            lower_blue = np.array([40, 50, 50])    # Adjust these values if needed
-            upper_blue = np.array([130, 255, 255]) # to precisely match your blue shade
-
-            # Create a mask to isolate blue regions
-            blue_mask = cv2.inRange(hsv_map, lower_blue, upper_blue)
-
-            # Apply the mask to retain only the blue areas
-            blue_only = cv2.bitwise_and(depth_colormap, depth_colormap, mask=blue_mask)
-            blue_gray = cv2.cvtColor(blue_only, cv2.COLOR_BGR2GRAY)
-            #depth_image = cv2.normalize(blue_gray, None, 0, 255, cv2.NORM_MINMAX)
-            
             #Improve Depth Image
 
             scale_factor = 0.4
