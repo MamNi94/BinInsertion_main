@@ -12,16 +12,23 @@ detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
-    wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
-    #wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
-
-    hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
+    #wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
+    #wall_model = tf.keras.models.load_model('models\wall_models_2911\wall_model_inception_epoch-09_val-acc-0.9986.h5')
     
+    #wall_model = tf.keras.models.load_model('models\wall_models_2911\wall_model_inception_all_data_epoch-20_val-acc-0.9931.h5')
+
+
+    #hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
+    #hole_model = tf.keras.models.load_model('models\hole_models_2911\hole_model_inception_epoch-15_val-acc-0.9852.h5')
+    
+    #hole_model = tf.keras.models.load_model('models\hole_models_2911\hole_model_inception_epoch-14_val-acc-0.9827_160.h5')
+    hole_model = tf.keras.models.load_model('models\hole_models_2911\hole_model_inception_epoch-12_val-acc-0.9849_160.h5')
 
 
 
 
-def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5):
+def detect_holes_batch(rects, img, hole_model, img_shape=160, hole_threshold=0.5):
     """
     Detect holes in multiple rectangles with a single model inference.
     
@@ -70,7 +77,7 @@ def detect_holes_batch(rects, img, hole_model, img_shape=224, hole_threshold=0.5
     h = 0
     if cropped_images:
         cropped_images_array = np.array([image.img_to_array(img) / 255.0 for img in cropped_images])
-        predictions = hole_model.predict(cropped_images_array)
+        predictions = hole_model.predict(cropped_images_array, verbose = 0)
 
         for rect, prediction in zip(valid_rects, predictions):
             text_offset_x = 150
@@ -108,7 +115,7 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
 
     ###for batch prediction
     with tf.device('/GPU:0'): 
-      prediction = wall_model.predict(img_array)
+      prediction = wall_model.predict(img_array, verbose = 0)
 
 
     print(prediction)
@@ -117,7 +124,7 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     w = np.int0(width/2)  
     
    
-    if prediction[0] > 0.999:
+    if prediction[0] > 0.99:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         wall_check = 1
@@ -394,7 +401,30 @@ def is_hull_bounded_by_rect(image, cut_region_final, rect_width=200, rect_height
     cv2.polylines(image, [cut_region_final], isClosed=True, color=(0, 255, 0), thickness=2)  # Convex hull
 
 
+def get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.015, scale_factor_inner = 0.86, adjustent_factor_inner = 0.86):
 
+            
+                    # Expand the hull outward
+                    expanded_hull = scale_hull(hull, scale_factor_outer, adjustent_factor_outer)
+                
+                    shrunk_hull = scale_hull(hull, scale_factor_inner,adjustent_factor_inner)
+
+
+                    ##cut between hulls
+                    # Create masks
+                    mask_outer = np.zeros(color_image.shape[:2], dtype=np.uint8)
+                    mask_inner = np.zeros(color_image.shape[:2], dtype=np.uint8)
+
+                    # Fill the masks with the hulls
+                    cv2.fillPoly(mask_outer, [expanded_hull], 255)  # Outer hull (expanded)
+                    cv2.fillPoly(mask_inner, [shrunk_hull], 255)   # Inner hull (shrunk)
+
+                    # Subtract the inner mask from the outer mask
+                    mask_between = cv2.subtract(mask_outer, mask_inner)
+
+                # Apply the mask to the image
+                    cut_region_final = cv2.bitwise_and(color_image, color_image, mask=mask_between)
+                    return cut_region_final
 
 
 #Initialize
@@ -459,15 +489,16 @@ try:
 
 
     
-            K =11
+            K =21
             kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
 
             depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
+       
 
 
-            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
-            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
-            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
            
            
@@ -511,32 +542,17 @@ try:
                     centroid = np.mean(hull[:, 0, :], axis=0)
 
                     
-                    scale_factor = 1.015
+                    scale_factor = 1.04
                     adjustment_factor = 1.02
                     # Expand the hull outward
-                    expanded_hull = scale_hull(hull, scale_factor, adjustment_factor)
-                    scale_factor = 0.86
+                    
+                    scale_factor = 0.82
                     adjustment_factor = 1.01
-                    shrunk_hull = scale_hull(hull, scale_factor,adjustment_factor)
+                   
 
-                    # Draw the convex hull on the image
-                    #cv2.polylines(color_image, [expanded_hull], isClosed=True, color=(0, 0, 255), thickness=2)
-                    #cv2.polylines(color_image, [shrunk_hull], isClosed=True, color=(0, 0, 255), thickness=2)
+                    cut_region_final = get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.02, scale_factor_inner = 0.88, adjustent_factor_inner = 1.01)
 
-                    ##cut between hulls
-                    # Create masks
-                    mask_outer = np.zeros(color_image.shape[:2], dtype=np.uint8)
-                    mask_inner = np.zeros(color_image.shape[:2], dtype=np.uint8)
-
-                    # Fill the masks with the hulls
-                    cv2.fillPoly(mask_outer, [expanded_hull], 255)  # Outer hull (expanded)
-                    cv2.fillPoly(mask_inner, [shrunk_hull], 255)   # Inner hull (shrunk)
-
-                    # Subtract the inner mask from the outer mask
-                    mask_between = cv2.subtract(mask_outer, mask_inner)
-
-                    # Apply the mask to the image
-                    cut_region_final = cv2.bitwise_and(color_image, color_image, mask=mask_between)
+        
                     
                     #is_hull_bounded_by_rect(color_image, expanded_hull, rect_width=1300, rect_height=880)
 
