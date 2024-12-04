@@ -13,10 +13,10 @@ if detection == True:
     from tensorflow.keras.preprocessing import image
     import tensorflow as tf
     #wall_model = tf.keras.models.load_model('models\wall_models_2511\wall_model_inception_epoch-17_val-acc-0.9954.h5')
-    wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
+    #wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
     #wall_model = tf.keras.models.load_model('models\wall_models_2911\wall_model_inception_epoch-09_val-acc-0.9986.h5')
     
-    #wall_model = tf.keras.models.load_model('models\wall_models_2911\wall_model_inception_all_data_epoch-20_val-acc-0.9931.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_0312\wall_model_inception_preprocessed_epoch-07_val-acc-0.9977_factors_1015_102_86_101.h5')
 
 
     #hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
@@ -102,6 +102,21 @@ def detect_holes_batch(rects, img, hole_model, img_shape=160, hole_threshold=0.5
 def detect_walls(color_image,masked_color_image, wall_model, number =1):
     
     wall_check = None
+
+     # Convert to grayscale
+    masked_color_image_gray = cv2.cvtColor(masked_color_image, cv2.COLOR_BGR2GRAY)
+    
+    # Threshold to create a binary mask
+    _, binary_mask = cv2.threshold(masked_color_image_gray, 1, 255, cv2.THRESH_BINARY)
+    
+    # Find coordinates of non-black pixels
+    coords = cv2.findNonZero(binary_mask)
+    
+    # Find bounding box around non-black pixels
+    x, y, w, h = cv2.boundingRect(coords)
+    
+    # Crop the non-black region
+    masked_color_image = masked_color_image[y:y+h, x:x+w]
 
     height, width, _ = masked_color_image.shape
     factor_x = 299/width
@@ -550,7 +565,7 @@ try:
                     adjustment_factor = 1.01
                    
 
-                    cut_region_final = get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.02, scale_factor_inner = 0.88, adjustent_factor_inner = 1.01)
+                    cut_region_final = get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.02, scale_factor_inner = 0.86, adjustent_factor_inner = 1.01)
 
         
                     
