@@ -16,7 +16,7 @@ import re
 
 # Define base directory
 
-dataset = 'dataset/data_0312_params_1015_102_088_101/'
+dataset = 'dataset/data_0612_diffrent_params/'
 wall_dir= f"{dataset}walls_only"
 hole_dir = f"{dataset}holes"
 color_image_dir = f"{dataset}color_image"
@@ -626,8 +626,8 @@ try:
                 scale_factor_inner_adjustment = random.uniform(1.02,1.01)
 
                 #cut_region_final_1 = get_region(scale_factor_outer = 1.04, adjustent_factor_outer = 1.02, scale_factor_inner = 0.82, adjustent_factor_inner = 1.01)
-                cut_region_final_3 = get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.02, scale_factor_inner = 0.86, adjustent_factor_inner = 1.01)
                 #cut_region_final_3 = get_region(scale_factor_outer = scale_factor_out, adjustent_factor_outer = scale_factor_out_djustment, scale_factor_inner = scale_factor_inner, adjustent_factor_inner =scale_factor_inner_adjustment)
+                cut_region_final_3 = get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.02, scale_factor_inner = 0.86, adjustent_factor_inner = 1.01)
                 cut_region_final_1 = get_region(scale_factor_outer = 0.95, adjustent_factor_outer = 1.02, scale_factor_inner = 0.86, adjustent_factor_inner = 1.01)
                 cut_region_final_2 = get_region(scale_factor_outer = 1.01, adjustent_factor_outer = 1.02, scale_factor_inner = 0.88, adjustent_factor_inner = 1.01)
 

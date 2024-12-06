@@ -139,7 +139,7 @@ def detect_walls(color_image,masked_color_image, wall_model, number =1):
     w = np.int0(width/2)  
     
    
-    if prediction[0] > 0.99:
+    if prediction[0] > 0.5:
         cv2.putText(color_image,f'Wall Check: Passed', (w-60,h+60), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         cv2.putText(color_image,f'Confidence: {prediction[0]}', (w-60,h+100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 200, 0), 3)
         wall_check = 1
@@ -640,11 +640,11 @@ try:
 
             ##add legend
             cv2.putText(color_image,f'good wall:', (100,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 3)
-            cv2.putText(color_image,f'good hole:', (100,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 3)
+            cv2.putText(color_image,f'bad hole:', (100,150), cv2.FONT_HERSHEY_SIMPLEX, 1,(255, 255, 255), 3)
             
             cv2.circle(color_image, (300,90), 1, (0, 255, 0), 30)
-            cv2.circle(color_image, (300,140), 1, (255, 125, 0), 15)
-            cv2.circle(color_image, (340,140), 1, (0, 165, 255), 15)
+            cv2.circle(color_image, (300,140), 1, (255, 50, 0), 15)
+           # cv2.circle(color_image, (340,140), 1, (0, 165, 255), 15)
             #end legend
 
               
