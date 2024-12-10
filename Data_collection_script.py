@@ -5,7 +5,7 @@ import random
 import matplotlib.pyplot as plt
 
 from video_capture import capture_frames
-from roi_functions import get_corner_points, get_shifted_points
+from roi_functions import get_corner_points, get_shifted_points, get_midpoints
 import queue
 import time
 import threading
@@ -16,19 +16,27 @@ import re
 
 # Define base directory
 
-dataset = 'dataset/data_0612_diffrent_params/'
+dataset = 'dataset/data_1012_diffrent_params_Rhenus/'
 wall_dir= f"{dataset}walls_only"
 hole_dir = f"{dataset}holes"
 color_image_dir = f"{dataset}color_image"
 wall_dir_2 = f"{dataset}walls_thin"
 wall_dir_3 = f"{dataset}walls_normal"
+crack_dir = f"{dataset}cracks"
 
 
 
-image_class_bin = 'positive'
+
+image_class_bin = 'negative'
 image_class_hole = 'positive'
 
+image_class_crack_1 ='positive' #upper
+image_class_crack_2 = 'negative' #lower
+
 save_holes = False
+save = True
+save_cracks = False
+save_walls = True
 
 # Create 'positive' and 'negative' directories if they don't exist
 
@@ -44,6 +52,9 @@ os.makedirs(os.path.join(wall_dir_2, "positive"), exist_ok=True)
 os.makedirs(os.path.join(wall_dir_2, "negative"), exist_ok=True)
 os.makedirs(os.path.join(wall_dir_3, "positive"), exist_ok=True)
 os.makedirs(os.path.join(wall_dir_3, "negative"), exist_ok=True)
+
+os.makedirs(os.path.join(crack_dir, "positive"), exist_ok=True)
+os.makedirs(os.path.join(crack_dir, "negative"), exist_ok=True)
 
 def get_highest_image_index(folder_path, class_name):
     """
@@ -91,7 +102,7 @@ def save_image(image, label, image_name,save_dir):
 
 
 
-def draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1):
+def draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1, hole_number = 1):
                 angle = -np.degrees(np.arctan2(y2-y1, x2-x1))
                 
                 x, y = p_new_1[0], p_new_1[1]
@@ -148,6 +159,8 @@ def draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1):
                 # Optional: Display the result to verify
                 cv2.imshow("Cropped Rectangle", cropped_image)
                 cv2.polylines(color_image, [rotated_rect_points], isClosed=True, color=(125, 125, 0), thickness=10)
+                cv2.putText(color_image, f'{hole_number}', (int(rotated_rect_points[0][0] - 100), int(rotated_rect_points[0][1] + 10)), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 200, 0),10)
                 
                 
                 return cropped_image
@@ -522,6 +535,8 @@ cutting_depth = 0.8
 
 i = get_highest_image_index(wall_dir, image_class_bin)
 h =get_highest_image_index(hole_dir, image_class_hole)
+c_2 = get_highest_image_index(crack_dir, image_class_crack_2)
+c_1 = get_highest_image_index(crack_dir, image_class_crack_1)
 
 box_detected_old = False
 box_detected_counter = 0
@@ -547,10 +562,22 @@ try:
             color_image = raw_color_image
             
             depth_image = np.asanyarray(filtered_depth_frame.get_data())
-            K =21
+            
+            K =11
             kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
 
-            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE,kernel)
+            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            
+       
+
+
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
             
            
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
@@ -572,7 +599,7 @@ try:
                 image_name = f'{image_class_bin}_{i}.jpg'
                
                 
-
+                #cv2.polylines(color_image, [hull], isClosed=True, color=(0, 255, 0), thickness=2)
                 corners = get_corner_points(color_image, box, hull)
                 
                 #get corner points
@@ -591,8 +618,12 @@ try:
                 ###cut bin
                 hull = cv2.convexHull(np.array(corners))
 
+                
+
                 # Find the centroid of the hull
                 centroid = np.mean(hull[:, 0, :], axis=0)
+
+
 
                 def get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.015, scale_factor_inner = 0.86, adjustent_factor_inner = 0.86):
 
@@ -634,6 +665,20 @@ try:
                 edge_scale_factor = 0.19
 
                 p_new_1, p_new_2, p_new_3, p_new_4, d1,d2, x1,y1,x2,y2,x3,y3,x4,y4 = get_shifted_points(edge_scale_factor,corners)
+
+                
+               
+              
+                if save_cracks == True:
+                    mid_1, mid_2 = get_midpoints(corners)
+                    crack_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,mid_1, hole_number=5)
+                    crack_2 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,mid_2, hole_number=6)
+                    if save == True:
+                        save_image(crack_1,image_class_crack_1, f'{image_class_crack_1}_{c_1}.jpg',crack_dir)
+                        c_1 +=1
+
+                        save_image(crack_2,image_class_crack_2, f'{image_class_crack_2}_{c_2}.jpg',crack_dir)
+                        c_2 +=1
                 
                
                 if save_holes == True:
@@ -641,28 +686,36 @@ try:
 
                         ########## draw rectangle
                      
-                        hole_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1)
-                        save_image(hole_1,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
-                        h+=1
-                        hole_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2)
-                        save_image(hole_2,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
-                        h+=1
-                        hole_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3)
-                        save_image(hole_3,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
-                        h+=1
-                        hole_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4)
-                        save_image(hole_4,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
-                        h+=1
+                        hole_1 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_1, hole_number=1)
+                        if save == True:
+                            save_image(hole_1,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
+                            h+=1
+                        hole_2 = draw_rotated_rectangle(color_image,x1,x2,y1,y2,p_new_2, hole_number=2)
+                        if save ==True:
+                            #save_image(hole_2,'negative', f'negative_{h}.jpg', hole_dir)
+                            save_image(hole_2,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
+                            h+=1
+                        hole_3 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_3, hole_number=3)
+                        if save == True:
+                            save_image(hole_3,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir) 
+                            h+=1
+
+                        hole_4 = draw_rotated_rectangle(color_image,x3,x4,y3,y4,p_new_4, hole_number=4)
+                        if save == True:
+                            #save_image(hole_4,image_class_hole, f'{image_class_hole}_{h}.jpg', hole_dir)
+                            save_image(hole_4,image_class_hole,  f'{image_class_hole}_{h}.jpg', hole_dir)
+                            h+=1
                 
-                save_walls = True
+              
                 if save_walls == True:
                     scale_factor = 0.4
                     cut_region_final_small = cv2.resize(cut_region_final_2,None, fx = scale_factor, fy= scale_factor)
                     cv2.imshow('cut out',cut_region_final_small)     
-                    save_image(cut_region_final_1,image_class_bin, image_name, wall_dir)
-                    save_image(cut_region_final_2,image_class_bin, image_name, wall_dir_2)
-                    save_image(cut_region_final_3,image_class_bin, image_name, wall_dir_3)
-                    i = i+1
+                    if save == True:
+                        save_image(cut_region_final_1,image_class_bin, image_name, wall_dir)
+                        save_image(cut_region_final_2,image_class_bin, image_name, wall_dir_2)
+                        save_image(cut_region_final_3,image_class_bin, image_name, wall_dir_3)
+                        i = i+1
             box_detected_old = box_detected
             scale_factor = 0.4
             resized_color_image = cv2.resize(color_image,None,fx =  scale_factor,fy = scale_factor)

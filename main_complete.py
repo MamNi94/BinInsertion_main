@@ -16,7 +16,7 @@ if detection == True:
     #wall_model = tf.keras.models.load_model('models\wall_models_1119\wall_model_inception_epoch-32_val-acc-0.9722_299x299.h5')
     #wall_model = tf.keras.models.load_model('models\wall_models_2911\wall_model_inception_epoch-09_val-acc-0.9986.h5')
     
-    wall_model = tf.keras.models.load_model('models\wall_models_0312\wall_model_inception_preprocessed_epoch-07_val-acc-0.9977_factors_1015_102_86_101.h5')
+    wall_model = tf.keras.models.load_model('models\wall_models_0912_rhenus\model_inception_wall_val_accuracy_0.9931_params_1015_102_86_101.h5.h5')
 
 
     #hole_model = tf.keras.models.load_model('models\hole_models_1911\hole_model_inception_epoch-18_val-acc-0.9846.h5')
@@ -443,6 +443,7 @@ def get_region(scale_factor_outer = 1.015, adjustent_factor_outer = 1.015, scale
 
 
 #Initialize
+img_count = 20
 pipeline = rs.pipeline()
 config = rs.config()
 config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, framerate = 30)
@@ -504,16 +505,22 @@ try:
 
 
     
-            K =21
+            K =11
             kernel = np.ones((K, K), np.uint8)  # You can adjust the kernel size
 
-            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_CLOSE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE,kernel)
+            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_DILATE, kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            #depth_image = cv2.morphologyEx(depth_image, cv2.MORPH_ERODE,kernel)
+            #
        
 
 
-            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
-            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
-            #depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+            depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
+           # depth_image = cv2.GaussianBlur(depth_image, (K, K), 0)
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.25), cv2.COLORMAP_VIRIDIS)
            
            
@@ -623,15 +630,26 @@ try:
                         for index, col_sum in enumerate(column_sums):
                             if col_sum >= 5:
                                 bin_check_final = True
+                                    
                                 
                             else:
                                 
                                 cv2.putText(color_image,f'This Bin Is Faulty!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
                                 bin_check_final = False
+                                pt = f'dataset/data_1012_insertion_test/negative_{img_count}.jpg'
+                                cv2.imwrite(pt, cropped_cut_region_final)
+                                cv2.imwrite()
+                                print(f"Image saved at {pt}")
+                                img_count +=1
                                 break
                         
                         if bin_check_final == True:
-                             cv2.putText(color_image,f'This Bin Is Amazing!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 3)
+                                cv2.putText(color_image,f'This Bin Is Amazing!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 255, 0), 3)
+
+                                pt = f'dataset/data_1012_insertion_test/positive_{img_count}.jpg'
+                                cv2.imwrite(pt, cropped_cut_region_final)
+                                print(f"Image saved at {pt}")
+                                img_count +=1
 
                         classification_matrix.pop(0)
 

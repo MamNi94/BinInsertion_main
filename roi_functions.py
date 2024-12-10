@@ -538,6 +538,39 @@ def cut_region_between_hulls(depth_image, color_image, min_depth=0, max_depth=0.
 
     return masked_color_image, cropped_image, hull, box, box_detected
 
+
+
+def get_midpoints( corners):
+                    corner_1 = corners[0]
+                    corner_2 = corners[1]
+                    corner_3 = corners[2]
+                    corner_4 = corners[3]
+
+        
+
+                    # Extract coordinates
+                    y_values = [corner_1[1], corner_2[1], corner_3[1], corner_4[1]]
+
+                    # Get points with largest and smallest y-values
+                    sorted_indices = sorted(range(len(y_values)), key=lambda i: y_values[i])
+                    min_indices = sorted_indices[:2]
+                    max_indices = sorted_indices[-2:]
+
+                    min_points = [corners[i] for i in min_indices]
+                    max_points = [corners[i] for i in max_indices]
+
+                    # Compute midpoints
+                    midpoint_min = [
+                        (min_points[0][0] + min_points[1][0]) / 2,
+                        (min_points[0][1] + min_points[1][1]) / 2,
+                    ]
+                    midpoint_max = [
+                        (max_points[0][0] + max_points[1][0]) / 2,
+                        (max_points[0][1] + max_points[1][1]) / 2,
+                    ]
+
+                    return midpoint_min, midpoint_max
+
 def get_shifted_points(edge_scale_factor,corners, offset = 20):
         
         corner_1 = corners[0]
@@ -658,20 +691,20 @@ def get_corner_points(color_image,box,hull):
                     p = tuple(hull[j][0])
                     x = p[0]
                     y = p[1]
-                    
-
-                    distance_scale_factor = 15
+                
+                    distance_scale_factor_long = 15
+                    distance_scale_factor_short = 15
                     ##long corners
-                    distance_corner_1 = calculate_distance(box[0], p, x_scale = 1, y_scale = distance_scale_factor)
-                    distance_corner_2 = calculate_distance(box[1], p,x_scale = 1, y_scale = distance_scale_factor)
-                    distance_corner_3 = calculate_distance(box[2], p,x_scale = 1, y_scale = distance_scale_factor)
-                    distance_corner_4 = calculate_distance(box[3], p,x_scale = 1, y_scale = distance_scale_factor)
+                    distance_corner_1 = calculate_distance(box[0], p, x_scale = 1, y_scale = distance_scale_factor_long)
+                    distance_corner_2 = calculate_distance(box[1], p,x_scale = 1, y_scale = distance_scale_factor_long)
+                    distance_corner_3 = calculate_distance(box[2], p,x_scale = 1, y_scale = distance_scale_factor_long)
+                    distance_corner_4 = calculate_distance(box[3], p,x_scale = 1, y_scale = distance_scale_factor_long)
 
                     #short corners
-                    distance_corner_5 = calculate_distance(box[0], p, x_scale = distance_scale_factor, y_scale = 1)
-                    distance_corner_6 = calculate_distance(box[1], p,x_scale = distance_scale_factor, y_scale = 1)
-                    distance_corner_7 = calculate_distance(box[2], p,x_scale = distance_scale_factor, y_scale = 1)
-                    distance_corner_8 = calculate_distance(box[3], p,x_scale = distance_scale_factor, y_scale = 1)
+                    distance_corner_5 = calculate_distance(box[0], p, x_scale = distance_scale_factor_short, y_scale = 1)
+                    distance_corner_6 = calculate_distance(box[1], p,x_scale = distance_scale_factor_short, y_scale = 1)
+                    distance_corner_7 = calculate_distance(box[2], p,x_scale = distance_scale_factor_short, y_scale = 1)
+                    distance_corner_8 = calculate_distance(box[3], p,x_scale = distance_scale_factor_short, y_scale = 1)
                     
                     if distance_corner_1 < reference_distance_corener_1:
                         x_corner_1 = x
