@@ -8,6 +8,8 @@ import time
 import math
 from roi_functions import get_corner_points, get_shifted_points, draw_rotated_rectangle
 
+import paramiko
+
 detection = True
 if detection == True:
     from tensorflow.keras.preprocessing import image
@@ -25,6 +27,34 @@ if detection == True:
     #hole_model = tf.keras.models.load_model('models\hole_models_2911\hole_model_inception_epoch-14_val-acc-0.9827_160.h5')
     hole_model = tf.keras.models.load_model('models\hole_models_2911\hole_model_inception_epoch-12_val-acc-0.9849_160.h5')
 
+
+# SSH Connection details
+hostname = "raspberrypi.local"  # Replace with the Raspberry Pi's IP or hostname
+username = "pi"                 # Replace with your Raspberry Pi username
+password = "123"      # Replace with your Raspberry Pi password
+stop_path = "conveyer_stop.py"  # Path to the Python script on the Raspberry Pi
+start_path = "raspberry_test.py"
+# Function to execute the script on the Raspberry Pi
+def execute_remote_script(hostname, username, password, script_path):
+    try:
+        # Establish SSH connection
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname, username=username, password=password)
+        
+        # Execute the script
+        stdin, stdout, stderr = ssh.exec_command(f"python3 {script_path}")
+        
+        # Print output and errors
+        print("Output:")
+        print(stdout.read().decode())
+        print("Errors:")
+        print(stderr.read().decode())
+        
+        # Close the connection
+        ssh.close()
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 
@@ -478,6 +508,9 @@ previous_center = [0,0]
 
 classification_matrix = []
 
+
+execute_remote_script(hostname, username, password, start_path)
+
 try:
     while True:
             loop_start = time.time()
@@ -534,6 +567,7 @@ try:
             hull,box,box_detected = detect_box(depth_image,color_image,min_depth = 0,max_depth = cutting_depth)
 
             if box_detected == True:
+                #execute_remote_script(hostname, username, password, stop_path)
                 current_center =  get_rect_center(box)
                 center_dist = distance(current_center,previous_center)
                 previous_center = current_center
@@ -636,6 +670,7 @@ try:
                                 
                                 cv2.putText(color_image,f'This Bin Is Faulty!', (850,420), cv2.FONT_HERSHEY_SIMPLEX, 1,(0, 0, 255), 3)
                                 bin_check_final = False
+                                execute_remote_script(hostname, username, password, stop_path)
                                 #pt = f'dataset/data_1012_insertion_test/negative_{img_count}.jpg'
                                 #cv2.imwrite(pt, cropped_cut_region_final)
                                 
@@ -715,7 +750,7 @@ except RuntimeError as e:
 finally:
     # Stop streaming
     #pipeline.stop()
-    
+    execute_remote_script(hostname, username, password, stop_path)
     print('Bincontroll stopped')
 
     cv2.destroyAllWindows()

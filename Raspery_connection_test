@@ -1,0 +1,34 @@
+import paramiko
+
+# SSH Connection details
+hostname = "raspberrypi.local"  # Replace with the Raspberry Pi's IP or hostname
+username = "pi"                 # Replace with your Raspberry Pi username
+password = "123"      # Replace with your Raspberry Pi password
+stop_path = "conveyer_stop.py"  # Path to the Python script on the Raspberry Pi
+start_path = "raspberry_test.py"
+
+# Function to execute the script on the Raspberry Pi
+def execute_remote_script(hostname, username, password, script_path):
+    try:
+        # Establish SSH connection
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname, username=username, password=password)
+        
+        # Execute the script
+        stdin, stdout, stderr = ssh.exec_command(f"python3 {script_path}")
+        
+        # Print output and errors
+        print("Output:")
+        print(stdout.read().decode())
+        print("Errors:")
+        print(stderr.read().decode())
+        
+        # Close the connection
+        ssh.close()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+execute_remote_script(hostname, username, password, stop_path)
+

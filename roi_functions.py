@@ -655,6 +655,9 @@ def calculate_distance(p1, p2, x_scale = 1,y_scale = 1):
     
     
 def get_corner_points(color_image,box,hull):
+               
+             #Try to rework this a little to avoid "break outs" --> example: at rhenus, we sometimes had the case, that a points far out on the convex hull was closer to conrer than our deired points based on distance funciont
+            #We need some smooth logic to prefere the point on the corner; for example also add distance to the more stable other corner point
                 x_corner_1 = 0
                 y_corner_1 = 0
                 reference_distance_corener_1 = 5000
